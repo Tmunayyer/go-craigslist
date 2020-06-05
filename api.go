@@ -9,19 +9,22 @@ import (
 
 const (
 	categoriesURL = "https://reference.craigslist.org/Categories"
-	locationsURL = "http://reference.craigslist.org/Areas"
+	locationsURL  = "http://reference.craigslist.org/Areas"
 )
 
 // API houses possible queries to craigslist
 type API interface {
 	ListCategories()
+	PrintCategories()
+	ListLocations()
+	PrintLocations()
 }
 
 // Client represents the main entrypoint to the API
 type Client struct {
 	initialized bool
 	Categories  map[string]Category
-	Locations map[string]Location
+	Locations   map[string]Location
 }
 
 // Category represents a valid Craigslist category that can be queried
@@ -105,6 +108,14 @@ func (c *Client) ListCategories() (map[string]Category, error) {
 	return c.Categories, nil
 }
 
+// PrintCategories prints a list of all valid categories
+func (c *Client) PrintCategories() {
+	fmt.Println("-- CATEGORIES")
+	for key, obj := range c.Categories {
+		fmt.Printf("\n\raccess key: %s, details: %+v", key, obj)
+	}
+}
+
 // ListLocations provides a list of all locations available on craiglist for query
 // Reference: https://www.craigslist.org/about/reference
 func (c *Client) ListLocations() (map[string]Location, error) {
@@ -133,4 +144,12 @@ func (c *Client) ListLocations() (map[string]Location, error) {
 	}
 
 	return c.Locations, nil
+}
+
+// PrintLocations prints a list of all valid locations
+func (c *Client) PrintLocations() {
+	fmt.Println("-- LOCATIONS")
+	for key, obj := range c.Locations {
+		fmt.Printf("\n\raccess key: %s, details: %+v", key, obj)
+	}
 }
