@@ -16,6 +16,7 @@ import (
 
 // Client houses possible queries to craigslist
 type Client interface {
+	// Primary Methods
 	FetchCategories(ctx context.Context) (map[string]Category, error)
 	FetchLocations(ctx context.Context) (map[string]Location, error)
 	BuildQuery(loc string, cat string, term string, filters Filters) (Query, error)
@@ -43,12 +44,11 @@ const (
 func NewClient(ctx context.Context) (Client, error) {
 	c := client{}
 	err := c.Initialize(ctx)
-
 	if err != nil {
 		return nil, fmt.Errorf("error initializing clinet: %v", err)
 	}
 
-	return c, nil
+	return &c, nil
 }
 
 // Initialize will instantiate datastructures on the Client struct
