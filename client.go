@@ -12,10 +12,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // Client houses possible queries to craigslist
 type Client interface {
+	// Prerequisites
+	Initialize(ctx context.Context) error
+
 	// Primary Methods
 	FetchCategories(ctx context.Context) (map[string]Category, error)
 	FetchLocations(ctx context.Context) (map[string]Location, error)
@@ -198,14 +202,16 @@ func (c *client) PrintLocations() {
 // Filters represents available filters
 type Filters struct {
 	srchType         bool // options: (T) true or (F) false
-	hasPic           int  // options: (1) true or (0) false
-	postedToday      int  // options: (1) true or (0) false
-	bundleDuplicates int  // options: (1) true or (0) false
+	hasPic           bool // options: (1) true or (0) false
+	postedToday      bool // options: (1) true or (0) false
+	bundleDuplicates bool // options: (1) true or (0) false
+	searchNearby     bool // options: (1) true or (0) false
 }
 
 // Query is the struct representation of a query passed to the Search function
 type Query struct {
-	Location string
+	URL      string
+	Hostname string
 	Category string
 	Term     string
 	Filters  string
@@ -215,7 +221,7 @@ type Query struct {
 // TODO: Implement filters
 func (c *client) BuildQuery(loc string, cat string, term string, filters Filters) (Query, error) {
 	// validate location
-	_, has := c.Locations[loc]
+	location, has := c.Locations[loc]
 	if !has {
 		return Query{}, fmt.Errorf("invalid location provided: %s", loc)
 	}
@@ -226,13 +232,47 @@ func (c *client) BuildQuery(loc string, cat string, term string, filters Filters
 		return Query{}, fmt.Errorf("invalid category provided: %s", cat)
 	}
 
-	// build the term
-	// TODO: ensure this is replacing " " with "+"
-	escapedTerm := url.PathEscape(term)
+	queryURL := fmt.Sprintf("https://%s.craigslist.org/d/placeholder/search/%s", location.Hostname, cat)
+	if term != "" {
+		formattedTerms := strings.Split(term, " ")
+		for i, piece := range formattedTerms {
+			formattedTerms[i] = url.QueryEscape(piece)
+		}
+		joinedTerm := strings.Join(formattedTerms, "+")
 
-	return Query{
-		Location: loc,
+		queryURL += "?query=" + joinedTerm
+	}
+
+	filterAccum := ""
+
+	if filters.srchType == true {
+		filterAccum += "&srchType=T"
+	}
+
+	if filters.hasPic == true {
+		filterAccum += "&hasPic=1"
+	}
+
+	if filters.postedToday == true {
+		filterAccum += "&postedToday=1"
+	}
+
+	if filters.bundleDuplicates == true {
+		filterAccum += "&bundleDuplicates=1"
+	}
+
+	// if filters.searchNearby == true {
+	// 	filterAccum += "&searchNearby=1"
+	// }
+
+	queryURL += filterAccum
+
+	q := Query{
+		URL:      queryURL,
+		Hostname: location.Hostname,
 		Category: cat,
-		Term:     escapedTerm,
-	}, nil
+		Term:     term,
+	}
+
+	return q, nil
 }
