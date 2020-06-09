@@ -24,6 +24,7 @@ type Client interface {
 	FetchCategories(ctx context.Context) (map[string]Category, error)
 	FetchLocations(ctx context.Context) (map[string]Location, error)
 	BuildQuery(loc string, cat string, term string, filters Filters) (Query, error)
+	Search(ctx context.Context, q Query) ([]Listing, error)
 
 	// Convenience
 	PrintCategories() // Prints categories on the client
@@ -38,6 +39,7 @@ type client struct {
 }
 
 const (
+	// these are not really helpful and can be skipped
 	categoriesURL = "https://reference.craigslist.org/Categories"
 	locationsURL  = "http://reference.craigslist.org/Areas"
 )
@@ -218,7 +220,6 @@ type Query struct {
 }
 
 // BuildQuery will take in its arguments and format a query pattern
-// TODO: Implement filters
 func (c *client) BuildQuery(loc string, cat string, term string, filters Filters) (Query, error) {
 	// validate location
 	location, has := c.Locations[loc]
@@ -232,47 +233,85 @@ func (c *client) BuildQuery(loc string, cat string, term string, filters Filters
 		return Query{}, fmt.Errorf("invalid category provided: %s", cat)
 	}
 
-	queryURL := fmt.Sprintf("https://%s.craigslist.org/d/placeholder/search/%s", location.Hostname, cat)
-	if term != "" {
-		formattedTerms := strings.Split(term, " ")
-		for i, piece := range formattedTerms {
-			formattedTerms[i] = url.QueryEscape(piece)
-		}
-		joinedTerm := strings.Join(formattedTerms, "+")
+	requestURL := fmt.Sprintf("https://%s.craigslist.org/d/placeholder/search/%s", location.Hostname, cat)
 
-		queryURL += "?query=" + joinedTerm
+	queryString, qhas := formatQuery(term)
+	if qhas == true {
+		requestURL += queryString
 	}
-
-	filterAccum := ""
-
-	if filters.srchType == true {
-		filterAccum += "&srchType=T"
+	filterString, fhas := formatFilters(filters)
+	if qhas == false && fhas == true {
+		requestURL += "?" + filterString
+	} else if fhas == true {
+		requestURL += filterString
 	}
-
-	if filters.hasPic == true {
-		filterAccum += "&hasPic=1"
-	}
-
-	if filters.postedToday == true {
-		filterAccum += "&postedToday=1"
-	}
-
-	if filters.bundleDuplicates == true {
-		filterAccum += "&bundleDuplicates=1"
-	}
-
-	// if filters.searchNearby == true {
-	// 	filterAccum += "&searchNearby=1"
-	// }
-
-	queryURL += filterAccum
 
 	q := Query{
-		URL:      queryURL,
+		URL:      requestURL,
 		Hostname: location.Hostname,
 		Category: cat,
 		Term:     term,
 	}
 
 	return q, nil
+}
+
+func formatFilters(filters Filters) (query string, has bool) {
+	if filters.srchType == true {
+		query += "&srchType=T"
+		has = true
+	}
+
+	if filters.hasPic == true {
+		query += "&hasPic=1"
+		has = true
+	}
+
+	if filters.postedToday == true {
+		query += "&postedToday=1"
+		has = true
+	}
+
+	if filters.bundleDuplicates == true {
+		query += "&bundleDuplicates=1"
+		has = true
+	}
+
+	return query, has
+}
+
+func formatQuery(term string) (query string, has bool) {
+	if term == "" {
+		return query, has
+	}
+	has = true
+
+	formattedTerms := strings.Split(term, " ")
+	for i, piece := range formattedTerms {
+		formattedTerms[i] = url.QueryEscape(piece)
+	}
+	joinedTerm := strings.Join(formattedTerms, "+")
+
+	query = "?query=" + joinedTerm
+
+	return query, has
+}
+
+func (c *client) Search(ctx context.Context, q Query) ([]Listing, error) {
+	resp, err := http.Get(q.URL)
+	if err != nil {
+		return nil, fmt.Errorf("error send request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("location fetching from query url: %s", resp.Status)
+	}
+
+	_, err = parseSearchResults(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing search results: %v", err)
+	}
+
+	return []Listing{}, nil
 }

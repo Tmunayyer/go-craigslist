@@ -152,7 +152,7 @@ func TestQueryBuilder(t *testing.T) {
 			expected: "https://newyork.craigslist.org/d/placeholder/search/mtk?query=hello+world",
 		},
 		{
-			name:     "q builder with a search term",
+			name:     "q builder term with special chars",
 			args:     []string{"nyc", "mtk", "hello world %$#", ""},
 			filter:   Filters{},
 			expected: "https://newyork.craigslist.org/d/placeholder/search/mtk?query=hello+world+%25%24%23",
@@ -168,6 +168,18 @@ func TestQueryBuilder(t *testing.T) {
 				searchNearby:     true,
 			},
 			expected: "https://newyork.craigslist.org/d/placeholder/search/mtk?query=hello+world+%25%24%23&srchType=T&hasPic=1&postedToday=1&bundleDuplicates=1",
+		},
+		{
+			name: "q builder filters with no term",
+			args: []string{"nyc", "mtk", "", ""},
+			filter: Filters{
+				srchType:         true,
+				hasPic:           true,
+				postedToday:      true,
+				bundleDuplicates: true,
+				searchNearby:     true,
+			},
+			expected: "https://newyork.craigslist.org/d/placeholder/search/mtk?&srchType=T&hasPic=1&postedToday=1&bundleDuplicates=1",
 		},
 	}
 
