@@ -75,7 +75,6 @@ func TestFindAttr(t *testing.T) {
 }
 
 func TestExtractListings(t *testing.T) {
-
 	data, err := ioutil.ReadFile("./sample.html")
 	assert.NoError(t, err)
 

@@ -13,15 +13,12 @@ func noErr(e error) {
 
 func main() {
 
-	c, err := NewClient(context.TODO())
+	c, err := NewClient(context.TODO(), "newyork")
 	noErr(err)
 
-	c.PrintCategories()
+	url := "https://newyork.craigslist.org/search/sss?query=xbox&sort=rel&srchType=T&postedToday=1"
 
-	q, err := c.BuildQuery("nyc", "ela", "ps4", Filters{})
-	noErr(err)
-
-	result, err := c.Search(context.TODO(), q)
+	result, err := c.Search(context.TODO(), url)
 	noErr(err)
 
 	fmt.Println("the result:", result)

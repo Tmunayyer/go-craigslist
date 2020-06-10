@@ -29,11 +29,9 @@ func parseSearchResults(data io.Reader) ([]Listing, error) {
 	// find the resultList, everything in here will go into the listing slice
 	resultList, _ := findBy(resultSection, "class", "rows")
 
-	extractListings(resultList)
+	listings := extractListings(resultList)
 
-	// fmt.Println("the listings", listings)
-
-	return []Listing{}, nil
+	return listings, nil
 }
 
 // findBy takes a parent node and iterates recursevly through the nodes
