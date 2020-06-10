@@ -18,9 +18,8 @@ func main() {
 
 	url := "https://newyork.craigslist.org/search/sss?query=xbox&sort=rel&srchType=T&postedToday=1"
 
-	result, err := c.Search(context.TODO(), url)
+	result, err := c.GetListings(context.TODO(), url)
 	noErr(err)
 
 	fmt.Println("the result:", result)
-
 }
