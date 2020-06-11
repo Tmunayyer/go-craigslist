@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -18,22 +19,7 @@ func randomLanguage(n int) []string {
 		index := rand.Intn(len(langBank))
 		selected := langBank[index]
 
-		langBank = append(langBank[0:index], langBank[index+1:len(langBank)]...)
-		out = append(out, selected)
-	}
-
-	return out
-}
-
-func randomCondition(n int) []string {
-	langBank := []string{"new", "like new", "excellent", "good", "fair", "salvage"}
-
-	out := []string{}
-	for i := 0; i < n; i++ {
-		index := rand.Intn(len(langBank))
-		selected := langBank[index]
-
-		langBank = append(langBank[0:index], langBank[index+1:len(langBank)]...)
+		langBank = append(langBank[0:index], langBank[index+1:]...)
 		out = append(out, selected)
 	}
 
@@ -165,7 +151,6 @@ func TestFormatURL(t *testing.T) {
 
 		beginQ := strings.Index(url, "?")
 		urlArgs := strings.Split(url[beginQ+1:], "&")
-		fmt.Println("the url args:", urlArgs)
 		argMap := map[string]string{}
 		for _, arg := range urlArgs {
 			pieces := strings.Split(arg, "=")
@@ -235,24 +220,164 @@ func TestFormatURL(t *testing.T) {
 	})
 
 	t.Run("accounts for conditions", func(t *testing.T) {
-		o := Options{
-			condition: []string{"new", "like new", "excellent", "good", "fair", "salvage"},
+		for _, test := range []struct {
+			given    Options
+			expected int
+		}{
+			{
+				given:    Options{condition: []string{"new"}},
+				expected: 10,
+			},
+			{
+				given:    Options{condition: []string{"like new"}},
+				expected: 20,
+			},
+			{
+				given:    Options{condition: []string{"excellent"}},
+				expected: 30,
+			},
+			{
+				given:    Options{condition: []string{"good"}},
+				expected: 40,
+			},
+			{
+				given:    Options{condition: []string{"fair"}},
+				expected: 50,
+			},
+			{
+				given:    Options{condition: []string{"salvage"}},
+				expected: 60,
+			},
+			{
+				given:    Options{condition: []string{"new", "like new", "excellent", "good", "fair", "salvage"}},
+				expected: 210,
+			},
+		} {
+			url, err := client.FormatURL("xbox", test.given)
+			assert.NoError(t, err)
+
+			beginQ := strings.Index(url, "?")
+			urlArgs := strings.Split(url[beginQ+1:], "&")
+
+			total := test.expected // 10 + 20 + 30 + 40 + 50 + 60
+			for _, arg := range urlArgs {
+				pieces := strings.Split(arg, "=")
+				key := pieces[0] // should be condition
+				if key == "condition" {
+					val, err := strconv.Atoi(pieces[1]) // will be key in argMap
+					assert.NoError(t, err)
+					total -= val
+				}
+			}
+			assert.Equal(t, 0, total)
 		}
-
-		url, err := client.FormatURL("xbox", o)
-		assert.NoError(t, err)
-
-		beginQ := strings.Index(url, "?")
-		urlArgs := strings.Split(url[beginQ+1:], "&")
-		argMap := map[string]string{}
-		for _, arg := range urlArgs {
-			pieces := strings.Split(arg, "=")
-			argMap[pieces[0]] = pieces[1]
-		}
-
-		assert.Equal(t, o.minPrice, argMap["min_price"])
-		assert.Equal(t, o.maxPrice, argMap["max_price"])
 	})
+
+	t.Run("accounts for languages", func(t *testing.T) {
+		languageMap := map[string]string{
+			"af": "1",
+			"ca": "2",
+			"da": "3",
+			"de": "4",
+			"en": "5",
+			"es": "6",
+			"fi": "7",
+			"fr": "8",
+			"it": "9",
+			"nl": "10",
+			"no": "11",
+			"pt": "12",
+			"sv": "13",
+			"tl": "14",
+			"tr": "15",
+			"zh": "16",
+			"ar": "17",
+			"ja": "18",
+			"ko": "19",
+			"ru": "20",
+			"vi": "21",
+		}
+
+		allLanguages := []string{}
+		for k, _ := range languageMap {
+			allLanguages = append(allLanguages, k)
+
+			o := Options{
+				language: []string{k},
+			}
+
+			url, err := client.FormatURL("xbox", o)
+			assert.NoError(t, err)
+
+			beginQ := strings.Index(url, "?")
+			urlArgs := strings.Split(url[beginQ+1:], "&")
+
+			total, err := strconv.Atoi(languageMap[k]) // 10 + 20 + 30 + 40 + 50 + 60
+			assert.NoError(t, err)
+
+			for _, arg := range urlArgs {
+				pieces := strings.Split(arg, "=")
+				key := pieces[0] // should be condition
+				if key == "language" {
+					val, err := strconv.Atoi(pieces[1]) // will be key in argMap
+					assert.NoError(t, err)
+					total -= val
+				}
+			}
+			assert.Equal(t, 0, total)
+		}
+
+		o := Options{
+			language: allLanguages,
+		}
+
+		iterativeHelper(t, &client, o, 231)
+
+		// url, err := client.FormatURL("xbox", o)
+		// assert.NoError(t, err)
+
+		// beginQ := strings.Index(url, "?")
+		// urlArgs := strings.Split(url[beginQ+1:], "&")
+
+		// total := 231 // 1 + 2 + 3 + 4 + 5 + 6 ... + 21
+		// assert.NoError(t, err)
+
+		// for _, arg := range urlArgs {
+		// 	pieces := strings.Split(arg, "=")
+		// 	key := pieces[0] // should be condition
+		// 	if key == "language" {
+		// 		val, err := strconv.Atoi(pieces[1]) // will be key in argMap
+		// 		assert.NoError(t, err)
+		// 		total -= val
+		// 	}
+		// }
+		// assert.Equal(t, 0, total)
+	})
+}
+
+// this function is really to just reduce the repetitive blocks of code
+// within the tests for conditions and languages. These mappings relate strings
+// to integers. With that in mind, we can check for appropriate mapping
+// my passing a total, subtracting the passed values, and expecting a 0 result.
+func iterativeHelper(t *testing.T, c *client, o Options, total int) {
+	t.Helper()
+
+	url, err := c.FormatURL("xbox", o)
+	assert.NoError(t, err)
+
+	beginQ := strings.Index(url, "?")
+	urlArgs := strings.Split(url[beginQ+1:], "&")
+
+	for _, arg := range urlArgs {
+		pieces := strings.Split(arg, "=")
+		key := pieces[0]
+		if key != "query" && key != "sort" {
+			val, err := strconv.Atoi(pieces[1])
+			assert.NoError(t, err)
+			total -= val
+		}
+	}
+	assert.Equal(t, 0, total)
 }
 
 func index(slice []string, target string) int {

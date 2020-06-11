@@ -147,6 +147,52 @@ func (c *client) FormatURL(term string, options Options) (string, error) {
 		args += maxPrice + options.maxPrice
 	}
 
+	conditionMap := map[string]string{
+		"new":       "10",
+		"like new":  "20",
+		"excellent": "30",
+		"good":      "40",
+		"fair":      "50",
+		"salvage":   "60",
+	}
+
+	if len(options.condition) > 0 {
+		for _, c := range options.condition {
+			url += condition + conditionMap[c]
+		}
+	}
+
+	languageMap := map[string]string{
+		"af": "1",
+		"ca": "2",
+		"da": "3",
+		"de": "4",
+		"en": "5",
+		"es": "6",
+		"fi": "7",
+		"fr": "8",
+		"it": "9",
+		"nl": "10",
+		"no": "11",
+		"pt": "12",
+		"sv": "13",
+		"tl": "14",
+		"tr": "15",
+		"zh": "16",
+		"ar": "17",
+		"ja": "18",
+		"ko": "19",
+		"ru": "20",
+		"vi": "21",
+	}
+
+	if len(options.language) > 0 {
+		fmt.Println("the options:", options.language)
+		for _, l := range options.language {
+			url += language + languageMap[l]
+		}
+	}
+
 	url += args
 
 	return url, nil
