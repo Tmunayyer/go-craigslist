@@ -3,9 +3,9 @@ This is a small library to programatically search craigslist.com. Inspired by [t
 
 ## Table of Contents
 
-[Quickstart](#quickstart)
-[Options](#options)
-[Categories and Locations](#categoriesandlocations)
+- [Quickstart](#quickstart)
+- [Options](#options)
+- [Categories and Locations](#categoriesandlocations)
 
 ## Quickstart
 ```go
