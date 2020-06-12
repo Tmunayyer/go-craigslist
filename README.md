@@ -35,7 +35,8 @@ func main() {
 | propert name          | type      | required | default      | description |
 |-----------------------|-----------|----------|--------------|-------------|
 |  location             | string    | false    | *init value  | defaults to location provided on intialization, providing location here will overrides init value |
-|  category             | string    | false    | all          | all, owner, dealer **attention**: incompatible for specific categories |
+|  category             | string    | false    | all          | *see section Categories and Locations |
+|  srchType             | string    | false    | "all"        | all, owner, dealer **attention**: incompatible for specific categories |
 |  hasPic               | bool      | false    | false        | true or false |
 |  postedToday          | bool      | false    | false        | true or false |
 |  bundleDuplicates     | bool      | false    | false        | true or false |
@@ -50,7 +51,7 @@ func main() {
 
 Resource: https://www.craigslist.org/about/reference
 
-The above resource details an api to discover categories and locations. This api is a bit unreliable/inconsistent. The most precise way to find a specfic category to search is to go directly to craigslist homepage and select it. You can then find the three letter code in the url. See example below.
+The above resource details an api to discover categories and locations. This api is a bit unreliable/inconsistent. The most precise way to find a specfic category is to go directly to craigslist's homepage and select from the index. You can then find the three letter code in the url. See example below.
 
 ### Example:
 ```
