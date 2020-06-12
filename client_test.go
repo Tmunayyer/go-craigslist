@@ -2,29 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"math/rand"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
-
-func randomLanguage(n int) []string {
-	langBank := []string{"af", "ca", "da", "de", "en", "es", "fi", "fr", "it", "nl", "no", "pt", "sv", "tl", "tr", "zh", "ar", "ja", "ko", "ru", "vi"}
-
-	out := []string{}
-	for i := 0; i < n; i++ {
-		index := rand.Intn(len(langBank))
-		selected := langBank[index]
-
-		langBank = append(langBank[0:index], langBank[index+1:]...)
-		out = append(out, selected)
-	}
-
-	return out
-}
 
 func TestFormatURL(t *testing.T) {
 	// note: expected variables should be pulled directly from craigslist
@@ -97,42 +80,33 @@ func TestFormatURL(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Run("no options provided, basic term", func(t *testing.T) {
+		expected := "https://newyork.craigslist.org/search/sss?query=xbox&sort=rel"
 		url, err := client.FormatURL("xbox", Options{})
 		assert.NoError(t, err)
-		expected := "https://newyork.craigslist.org/search/sss?query=xbox&sort=rel"
-
 		assert.Equal(t, expected, url)
 	})
 
 	t.Run("properly escaping term", func(t *testing.T) {
+		expected := "https://newyork.craigslist.org/search/sss?query=xbox+123+.+%23%24%25&sort=rel"
 		url, err := client.FormatURL("xbox 123 . #$%", Options{})
 		assert.NoError(t, err)
-		expected := "https://newyork.craigslist.org/search/sss?query=xbox+123+.+%23%24%25&sort=rel"
-
 		assert.Equal(t, expected, url)
 	})
 
 	t.Run("should overwright location if provided by options", func(t *testing.T) {
-		o := Options{
-			location: "testing",
-		}
+		o := Options{location: "testing"}
+		expected := "https://testing.craigslist.org/search/sss?query=xbox&sort=rel"
 		url, err := client.FormatURL("xbox", o)
 		assert.NoError(t, err)
-
-		expected := "https://testing.craigslist.org/search/sss?query=xbox&sort=rel"
-
 		assert.Equal(t, expected, url)
 	})
 
 	t.Run("should overwright category if provided by options", func(t *testing.T) {
-		o := Options{
-			category: "aaa",
-		}
-		url, err := client.FormatURL("xbox", o)
-		assert.NoError(t, err)
-
+		o := Options{category: "aaa"}
 		expected := "https://newyork.craigslist.org/search/aaa?query=xbox&sort=rel"
 
+		url, err := client.FormatURL("xbox", o)
+		assert.NoError(t, err)
 		assert.Equal(t, expected, url)
 	})
 
@@ -148,6 +122,9 @@ func TestFormatURL(t *testing.T) {
 
 		url, err := client.FormatURL("xbox", o)
 		assert.NoError(t, err)
+
+		// lookup each arg by name in a map and ensure everything is there
+		// with appropriate value
 
 		beginQ := strings.Index(url, "?")
 		urlArgs := strings.Split(url[beginQ+1:], "&")
@@ -184,7 +161,6 @@ func TestFormatURL(t *testing.T) {
 		}
 
 		if o.cryptoCurrencyOK {
-			fmt.Println("cryptoOK", argMap["crypto_currency_ok"])
 			assert.Equal(t, "1", argMap["crypto_currency_ok"])
 			numberOfOptions++
 		}
@@ -250,108 +226,41 @@ func TestFormatURL(t *testing.T) {
 			},
 			{
 				given:    Options{condition: []string{"new", "like new", "excellent", "good", "fair", "salvage"}},
-				expected: 210,
+				expected: 210, // 10 + 20 + 30 + 40 + 50 + 60
 			},
 		} {
 			url, err := client.FormatURL("xbox", test.given)
 			assert.NoError(t, err)
 
-			beginQ := strings.Index(url, "?")
-			urlArgs := strings.Split(url[beginQ+1:], "&")
-
-			total := test.expected // 10 + 20 + 30 + 40 + 50 + 60
-			for _, arg := range urlArgs {
-				pieces := strings.Split(arg, "=")
-				key := pieces[0] // should be condition
-				if key == "condition" {
-					val, err := strconv.Atoi(pieces[1]) // will be key in argMap
-					assert.NoError(t, err)
-					total -= val
-				}
-			}
-			assert.Equal(t, 0, total)
+			analyzeURL(t, url, test.given, test.expected)
 		}
 	})
 
 	t.Run("accounts for languages", func(t *testing.T) {
-		languageMap := map[string]string{
-			"af": "1",
-			"ca": "2",
-			"da": "3",
-			"de": "4",
-			"en": "5",
-			"es": "6",
-			"fi": "7",
-			"fr": "8",
-			"it": "9",
-			"nl": "10",
-			"no": "11",
-			"pt": "12",
-			"sv": "13",
-			"tl": "14",
-			"tr": "15",
-			"zh": "16",
-			"ar": "17",
-			"ja": "18",
-			"ko": "19",
-			"ru": "20",
-			"vi": "21",
-		}
+		languageMap := map[string]string{"af": "1", "ca": "2", "da": "3", "de": "4", "en": "5", "es": "6", "fi": "7", "fr": "8", "it": "9", "nl": "10", "no": "11", "pt": "12", "sv": "13", "tl": "14", "tr": "15", "zh": "16", "ar": "17", "ja": "18", "ko": "19", "ru": "20", "vi": "21"}
 
 		allLanguages := []string{}
-		for k, _ := range languageMap {
+		for k := range languageMap {
+			// push to a slice to use for testing all langs later
 			allLanguages = append(allLanguages, k)
 
-			o := Options{
-				language: []string{k},
-			}
+			o := Options{language: []string{k}}
 
 			url, err := client.FormatURL("xbox", o)
 			assert.NoError(t, err)
 
-			beginQ := strings.Index(url, "?")
-			urlArgs := strings.Split(url[beginQ+1:], "&")
-
-			total, err := strconv.Atoi(languageMap[k]) // 10 + 20 + 30 + 40 + 50 + 60
+			total, err := strconv.Atoi(languageMap[k])
 			assert.NoError(t, err)
 
-			for _, arg := range urlArgs {
-				pieces := strings.Split(arg, "=")
-				key := pieces[0] // should be condition
-				if key == "language" {
-					val, err := strconv.Atoi(pieces[1]) // will be key in argMap
-					assert.NoError(t, err)
-					total -= val
-				}
-			}
-			assert.Equal(t, 0, total)
+			analyzeURL(t, url, o, total)
 		}
 
-		o := Options{
-			language: allLanguages,
-		}
+		o := Options{language: allLanguages}
 
-		iterativeHelper(t, &client, o, 231)
+		url, err := client.FormatURL("xbox", o)
+		assert.NoError(t, err)
 
-		// url, err := client.FormatURL("xbox", o)
-		// assert.NoError(t, err)
-
-		// beginQ := strings.Index(url, "?")
-		// urlArgs := strings.Split(url[beginQ+1:], "&")
-
-		// total := 231 // 1 + 2 + 3 + 4 + 5 + 6 ... + 21
-		// assert.NoError(t, err)
-
-		// for _, arg := range urlArgs {
-		// 	pieces := strings.Split(arg, "=")
-		// 	key := pieces[0] // should be condition
-		// 	if key == "language" {
-		// 		val, err := strconv.Atoi(pieces[1]) // will be key in argMap
-		// 		assert.NoError(t, err)
-		// 		total -= val
-		// 	}
-		// }
-		// assert.Equal(t, 0, total)
+		analyzeURL(t, url, o, 231) // 231 = 21!
 	})
 }
 
@@ -359,15 +268,11 @@ func TestFormatURL(t *testing.T) {
 // within the tests for conditions and languages. These mappings relate strings
 // to integers. With that in mind, we can check for appropriate mapping
 // my passing a total, subtracting the passed values, and expecting a 0 result.
-func iterativeHelper(t *testing.T, c *client, o Options, total int) {
+func analyzeURL(t *testing.T, url string, o Options, total int) {
 	t.Helper()
-
-	url, err := c.FormatURL("xbox", o)
-	assert.NoError(t, err)
 
 	beginQ := strings.Index(url, "?")
 	urlArgs := strings.Split(url[beginQ+1:], "&")
-
 	for _, arg := range urlArgs {
 		pieces := strings.Split(arg, "=")
 		key := pieces[0]
@@ -378,13 +283,4 @@ func iterativeHelper(t *testing.T, c *client, o Options, total int) {
 		}
 	}
 	assert.Equal(t, 0, total)
-}
-
-func index(slice []string, target string) int {
-	for i, val := range slice {
-		if val == target {
-			return i
-		}
-	}
-	return -1
 }
