@@ -57,13 +57,14 @@ type Options struct {
 	category string // OPTIONAL: defaults to constant defCategory, providing category overrides default variable
 
 	// filters
-	postedBy          int      // OPTIONAL: [all, 1], [owner, 2], [dealder, 3] note: this only works for default search (sss), not specific categories
-	srchType          bool     // OPTIONAL: dev note - uses "T" or "F" instead of 1 or 0
-	hasPic            bool     // OPTIONAL: dev note - uses 1 for true, 0 for false
-	postedToday       bool     // OPTIONAL: dev note - uses 1 for true, 0 for false
-	bundleDuplicates  bool     // OPTIONAL: dev note - uses 1 for true, 0 for false
-	cryptoCurrencyOK  bool     // OPTIONAL: dev note - uses 1 for true, 0 for false
-	deliveryAvailable bool     // OPTIONAL: dev note - uses 1 for true, 0 for false
+	// filters with tuple values are represented as [input value, mapped value]
+	postedBy          string   // OPTIONAL: [all, sss], [owner, sso], [dealer, ssq] attention: this only works for default search (sss), not specific categories
+	srchType          bool     // OPTIONAL: true or false; dev note - uses "T" or "F" instead of 1 or 0
+	hasPic            bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	postedToday       bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	bundleDuplicates  bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	cryptoCurrencyOK  bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	deliveryAvailable bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
 	minPrice          string   // OPTIONAL: example = 100
 	maxPrice          string   // OPTIONAL: example = 500
 	condition         []string // OPTIONAL: [new, 10], [like new, 20], [excellent, 30], [good, 40], [fair, 50], [salvage, 60]
@@ -79,7 +80,13 @@ func (c *client) FormatURL(term string, options Options) string {
 
 	finalCategory := options.category
 	if finalCategory == "" {
-		finalCategory = defCategory
+		if options.postedBy == "owner" {
+			finalCategory = defCategoryOwner
+		} else if options.postedBy == "dealer" {
+			finalCategory = defCategoryDealer
+		} else {
+			finalCategory = defCategory
+		}
 	}
 
 	formattedTerm := formatTerm(term)
@@ -139,18 +146,8 @@ func (c *client) FormatURL(term string, options Options) string {
 	return url
 }
 
-func formatTerm(term string) string {
-	pieces := strings.Split(term, " ")
-
-	escapedPieces := []string{}
-	for _, piece := range pieces {
-		escapedPieces = append(escapedPieces, url.QueryEscape(piece))
-	}
-
-	return strings.Join(escapedPieces, "+")
-}
-
 // GetListings simply takes a URL and returns the first page of listings on that page.
+// TODO: add pagination ?
 func (c *client) GetListings(ctx context.Context, url string) ([]Listing, error) {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -168,4 +165,15 @@ func (c *client) GetListings(ctx context.Context, url string) ([]Listing, error)
 	}
 
 	return listings, nil
+}
+
+func formatTerm(term string) string {
+	pieces := strings.Split(term, " ")
+
+	escapedPieces := []string{}
+	for _, piece := range pieces {
+		escapedPieces = append(escapedPieces, url.QueryEscape(piece))
+	}
+
+	return strings.Join(escapedPieces, "+")
 }

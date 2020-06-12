@@ -10,7 +10,7 @@ import (
 )
 
 func TestFindBy(t *testing.T) {
-	data, err := ioutil.ReadFile("./sample.html")
+	data, err := ioutil.ReadFile("./test.html")
 	assert.NoError(t, err)
 
 	r := bytes.NewReader(data)
@@ -42,7 +42,7 @@ func TestFindBy(t *testing.T) {
 }
 
 func TestFindAttr(t *testing.T) {
-	data, err := ioutil.ReadFile("./sample.html")
+	data, err := ioutil.ReadFile("./test.html")
 	assert.NoError(t, err)
 
 	r := bytes.NewReader(data)
@@ -75,7 +75,7 @@ func TestFindAttr(t *testing.T) {
 }
 
 func TestExtractListings(t *testing.T) {
-	data, err := ioutil.ReadFile("./sample.html")
+	data, err := ioutil.ReadFile("./test.html")
 	assert.NoError(t, err)
 
 	r := bytes.NewReader(data)
