@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"strconv"
 	"strings"
 	"testing"
@@ -10,8 +9,7 @@ import (
 )
 
 func TestFormatURL(t *testing.T) {
-	client, err := NewClient(context.Background(), "newyork")
-	assert.NoError(t, err)
+	client := NewClient("newyork")
 
 	t.Run("no options provided, basic term", func(t *testing.T) {
 		expected := "https://newyork.craigslist.org/search/sss?query=xbox&sort=rel"
