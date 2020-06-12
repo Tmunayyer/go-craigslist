@@ -45,9 +45,9 @@ type client struct {
 }
 
 // NewClient will instantiate a client, set the location, and return a pointer.
-func NewClient(ctx context.Context, location string) (Client, error) {
+func NewClient(location string) Client {
 	c := client{location: location}
-	return &c, nil
+	return &c
 }
 
 // Options represents available filters when constructing a URL.
