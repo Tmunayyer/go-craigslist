@@ -1,8 +1,13 @@
 # go-craigslist
-A Go API to query craigslist.
+This is a small library to programatically search craigslist.com. Inspired by [this node library](https://github.com/brozeph/node-craigslist).
 
-## To Use
+## Table of Contents
 
+[Quickstart](#quickstart)
+[Options](#options)
+[Categories and Locations](#categoriesandlocations)
+
+## Quickstart
 ```go
 package main
 
@@ -14,38 +19,23 @@ import (
 )
 
 func main() {
+    // create a new client, pass in a location
 	client := gocraigslist.NewClient("newyork")
 
-	// with a url
+	// use your own url from a search on craigslist.com
 	listings, err := client.GetListings(context.TODO(), "https://newyork.craigslist.org/d/antiques/search/ata")
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("the antique listings:", listings)
-
-	// or create your own url
-	url := client.FormatURL("comfy couch", gocraigslist.Options{
-		location:  "sfbay",
-		category:  "fua", // furniture
-		maxPrice:  "500",
-		condition: []string{"new", "like new"},
-	})
-
-	listings, err = client.GetListings(context.TODO(), url)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("the couch listings in SF:", listings)
 }
 ```
 
 ## Options
-Optionsal filters with tuple values are represented as [input value, mapped value]
-
 | propert name          | type      | required | default      | description |
 |-----------------------|-----------|----------|--------------|-------------|
 |  location             | string    | false    | *init value  | defaults to location provided on intialization, providing location here will overrides init value |
-|  category             | string    | false    | "sss"        | [all, sss], [owner, sso], [dealer, ssq] **attention**: this only works for default search (sss), not specific categories |
+|  category             | string    | false    | all          | all, owner, dealer **attention**: incompatible for specific categories |
 |  hasPic               | bool      | false    | false        | true or false |
 |  postedToday          | bool      | false    | false        | true or false |
 |  bundleDuplicates     | bool      | false    | false        | true or false |
@@ -53,8 +43,8 @@ Optionsal filters with tuple values are represented as [input value, mapped valu
 |  deliveryAvailable    | bool      | false    | false        | true or false |
 |  minPrice             | string    | false    | 0            | example: "100" |
 |  maxPrice             | string    | false    | 0            | example: "500" |
-|  lanaguage            | []string  | false    | []string     | [new, 10], [like new, 20], [excellent, 30], [good, 40], [fair, 50], [salvage, 60] |
-|  condition            | []string  | false    | []string     | [af, 1], [ca, 2], [da, 3], [de, 4], [en, 5], [es, 6], [fi, 7], [fr, 8], [it, 9], [nl, 10], [no, 11], [pt, 12], [sv, 13], [tl, 14], [tr, 15], [zh, 16], [ar, 17], [ja, 18], [ko, 19], [ru, 20], [vi, 21] |
+|  lanaguage            | []string  | false    | []string     | new, like new, excellent, good, fair, salvage |
+|  condition            | []string  | false    | []string     | af, ca, da, de, en, es, fi, fr, it, nl, no, pt, sv, tl, tr, zh, ar, ja, ko, ru, vi |
 
 ## Categories and Locations
 
@@ -66,4 +56,5 @@ The above resource details an api to discover categories and locations. This api
 ```
 https://sfbay.craigslist.org/d/auto-parts/search/pta
 ```
-The Category code here is "pta".
+The location is "sfbay". The category code is "pta".
+
