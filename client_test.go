@@ -1,194 +1,213 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http/httptest"
+	"context"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-var testCategories []Category
-
-var testLocations []Location
-
-// A function to initialize a client without making the http
-// requests for the categories and locations.
-func newMockClient() (*client, error) {
-	c := client{}
-
-	c.initialized = true
-	c.Categories = make(map[string]Category)
-	c.Locations = make(map[string]Location)
-
-	return &c, nil
-}
-
-func createMockResponse(t *testing.T, body interface{}) *httptest.ResponseRecorder {
-	mockResponse := httptest.NewRecorder()
-
-	mockBody, err := json.Marshal(body)
+func TestFormatURL(t *testing.T) {
+	client, err := NewClient(context.Background(), "newyork")
 	assert.NoError(t, err)
 
-	mockResponse.Code = 200
-	_, err = mockResponse.Write(mockBody)
-	assert.NoError(t, err)
+	t.Run("no options provided, basic term", func(t *testing.T) {
+		expected := "https://newyork.craigslist.org/search/sss?query=xbox&sort=rel"
+		url := client.FormatURL("xbox", Options{})
+		assert.Equal(t, expected, url)
+	})
 
-	return mockResponse
-}
+	t.Run("properly escaping term", func(t *testing.T) {
+		expected := "https://newyork.craigslist.org/search/sss?query=xbox+123+.+%23%24%25&sort=rel"
+		url := client.FormatURL("xbox 123 . #$%", Options{})
+		assert.Equal(t, expected, url)
+	})
 
-func setupTests(t *testing.T) {
-	testCategories = []Category{
-		{
-			Abbreviation: "mtk",
-			CategoryID:   1,
-			Description:  "money take kong",
-			Type:         "T",
-		},
-		{
-			Abbreviation: "tem",
-			CategoryID:   2,
-			Description:  "thomas elias munayyer",
-			Type:         "H",
-		},
-	}
+	t.Run("should overwright location if provided by options", func(t *testing.T) {
+		o := Options{location: "testing"}
+		expected := "https://testing.craigslist.org/search/sss?query=xbox&sort=rel"
+		url := client.FormatURL("xbox", o)
+		assert.Equal(t, expected, url)
+	})
 
-	testLocations = []Location{
-		{
-			Abbreviation:     "sf",
-			AreaID:           1,
-			Country:          "USA",
-			Description:      "san fransisco",
-			Hostname:         "hostname",
-			Latitude:         1.23,
-			Longitude:        2.13,
-			Region:           "california",
-			ShortDescription: "san fran",
-			Timezone:         "california",
-		},
-		{
-			Abbreviation:     "nyc",
-			AreaID:           2,
-			Country:          "USA",
-			Description:      "the big apple",
-			Hostname:         "newyork",
-			Latitude:         1.23,
-			Longitude:        2.13,
-			Region:           "new york",
-			ShortDescription: "New York city",
-			Timezone:         "East Coast",
-		},
-	}
-}
+	t.Run("should overwright category if provided by options", func(t *testing.T) {
+		o := Options{category: "aaa"}
+		expected := "https://newyork.craigslist.org/search/aaa?query=xbox&sort=rel"
 
-func TestSetCategories(t *testing.T) {
-	setupTests(t)
-	// skip the actual call and make sure the setCategories function
-	// is working and errors appropriatly
+		url := client.FormatURL("xbox", o)
+		assert.Equal(t, expected, url)
+	})
 
-	mockClient, _ := newMockClient()
-	mockResponse := createMockResponse(t, testCategories)
+	t.Run("should account for bool options", func(t *testing.T) {
+		o := Options{
+			srchType:          true,
+			hasPic:            true,
+			postedToday:       true,
+			bundleDuplicates:  true,
+			cryptoCurrencyOK:  true,
+			deliveryAvailable: true,
+		}
 
-	t.Run("setting categories on client", func(t *testing.T) {
-		_, err := setCategories(mockClient, mockResponse.Result())
-		assert.NoError(t, err)
+		url := client.FormatURL("xbox", o)
 
-		for _, cat := range testCategories {
-			_, has := mockClient.Categories[cat.Abbreviation]
-			assert.True(t, has)
+		// lookup each arg by name in a map and ensure everything is there
+		// with appropriate value
+		beginQ := strings.Index(url, "?")
+		urlArgs := strings.Split(url[beginQ+1:], "&")
+		argMap := map[string]string{}
+		for _, arg := range urlArgs {
+			pieces := strings.Split(arg, "=")
+			argMap[pieces[0]] = pieces[1]
+		}
+
+		numberOfOptions := 0
+		if o.srchType {
+			assert.Equal(t, "T", argMap["srchType"])
+			numberOfOptions++
+		}
+
+		if o.hasPic {
+			assert.Equal(t, "1", argMap["hasPic"])
+			numberOfOptions++
+		}
+
+		if o.postedToday {
+			assert.Equal(t, "1", argMap["postedToday"])
+			numberOfOptions++
+		}
+
+		if o.postedToday {
+			assert.Equal(t, "1", argMap["postedToday"])
+			numberOfOptions++
+		}
+
+		if o.bundleDuplicates {
+			assert.Equal(t, "1", argMap["bundleDuplicates"])
+			numberOfOptions++
+		}
+
+		if o.cryptoCurrencyOK {
+			assert.Equal(t, "1", argMap["crypto_currency_ok"])
+			numberOfOptions++
+		}
+
+		if o.deliveryAvailable {
+			assert.Equal(t, "1", argMap["delivery_available"])
+			numberOfOptions++
+		}
+
+		// the query and rel arg are passed always, minus 2 from length of argMap
+		assert.Equal(t, numberOfOptions, len(argMap)-1)
+	})
+
+	t.Run("accounts for min and max price", func(t *testing.T) {
+		o := Options{
+			minPrice: "100",
+			maxPrice: "500",
+		}
+
+		url := client.FormatURL("xbox", o)
+
+		beginQ := strings.Index(url, "?")
+		urlArgs := strings.Split(url[beginQ+1:], "&")
+		argMap := map[string]string{}
+		for _, arg := range urlArgs {
+			pieces := strings.Split(arg, "=")
+			argMap[pieces[0]] = pieces[1]
+		}
+
+		assert.Equal(t, o.minPrice, argMap["min_price"])
+		assert.Equal(t, o.maxPrice, argMap["max_price"])
+	})
+
+	t.Run("accounts for conditions", func(t *testing.T) {
+		for _, test := range []struct {
+			given    Options
+			expected int
+		}{
+			{
+				given:    Options{condition: []string{"new"}},
+				expected: 10,
+			},
+			{
+				given:    Options{condition: []string{"like new"}},
+				expected: 20,
+			},
+			{
+				given:    Options{condition: []string{"excellent"}},
+				expected: 30,
+			},
+			{
+				given:    Options{condition: []string{"good"}},
+				expected: 40,
+			},
+			{
+				given:    Options{condition: []string{"fair"}},
+				expected: 50,
+			},
+			{
+				given:    Options{condition: []string{"salvage"}},
+				expected: 60,
+			},
+			{
+				given:    Options{condition: []string{"new", "like new", "excellent", "good", "fair", "salvage"}},
+				expected: 210, // 10 + 20 + 30 + 40 + 50 + 60
+			},
+		} {
+			url := client.FormatURL("xbox", test.given)
+			analyzeURL(t, url, test.given, test.expected)
 		}
 	})
-}
 
-func TestSetLocations(t *testing.T) {
-	setupTests(t)
-	// skip the actual call and make sure the setCategories function
-	// is working and errors appropriatly
+	t.Run("accounts for languages", func(t *testing.T) {
+		languageMap := map[string]string{"af": "1", "ca": "2", "da": "3", "de": "4", "en": "5", "es": "6", "fi": "7", "fr": "8", "it": "9", "nl": "10", "no": "11", "pt": "12", "sv": "13", "tl": "14", "tr": "15", "zh": "16", "ar": "17", "ja": "18", "ko": "19", "ru": "20", "vi": "21"}
 
-	mockClient, _ := newMockClient()
-	mockResponse := createMockResponse(t, testLocations)
+		allLanguages := []string{}
+		for k := range languageMap {
+			// push to a slice to use for testing all langs later
+			allLanguages = append(allLanguages, k)
 
-	t.Run("setting locations on client", func(t *testing.T) {
-		_, err := setLocations(mockClient, mockResponse.Result())
-		assert.NoError(t, err)
+			o := Options{language: []string{k}}
 
-		for _, loc := range testLocations {
-			_, has := mockClient.Locations[loc.Abbreviation]
-			assert.True(t, has)
-		}
-	})
-}
+			url := client.FormatURL("xbox", o)
 
-func TestQueryBuilder(t *testing.T) {
-	setupTests(t)
-
-	mockClient, err := newMockClient()
-	assert.NoError(t, err)
-
-	locationsBody := createMockResponse(t, testLocations).Result()
-	categoriesBody := createMockResponse(t, testCategories).Result()
-
-	_, err = setLocations(mockClient, locationsBody)
-	assert.NoError(t, err)
-	_, err = setCategories(mockClient, categoriesBody)
-	assert.NoError(t, err)
-
-	tests := []struct {
-		name     string
-		args     []string
-		filter   Filters
-		expected string
-	}{
-		{
-			name:     "q builder just loc and cat",
-			args:     []string{"nyc", "mtk", "", ""},
-			filter:   Filters{},
-			expected: "https://newyork.craigslist.org/d/placeholder/search/mtk",
-		},
-		{
-			name:     "q builder with a search term",
-			args:     []string{"nyc", "mtk", "hello world", ""},
-			filter:   Filters{},
-			expected: "https://newyork.craigslist.org/d/placeholder/search/mtk?query=hello+world",
-		},
-		{
-			name:     "q builder term with special chars",
-			args:     []string{"nyc", "mtk", "hello world %$#", ""},
-			filter:   Filters{},
-			expected: "https://newyork.craigslist.org/d/placeholder/search/mtk?query=hello+world+%25%24%23",
-		},
-		{
-			name: "q builder with filters",
-			args: []string{"nyc", "mtk", "hello world %$#", ""},
-			filter: Filters{
-				srchType:         true,
-				hasPic:           true,
-				postedToday:      true,
-				bundleDuplicates: true,
-				searchNearby:     true,
-			},
-			expected: "https://newyork.craigslist.org/d/placeholder/search/mtk?query=hello+world+%25%24%23&srchType=T&hasPic=1&postedToday=1&bundleDuplicates=1",
-		},
-		{
-			name: "q builder filters with no term",
-			args: []string{"nyc", "mtk", "", ""},
-			filter: Filters{
-				srchType:         true,
-				hasPic:           true,
-				postedToday:      true,
-				bundleDuplicates: true,
-				searchNearby:     true,
-			},
-			expected: "https://newyork.craigslist.org/d/placeholder/search/mtk?&srchType=T&hasPic=1&postedToday=1&bundleDuplicates=1",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			actual, err := mockClient.BuildQuery(test.args[0], test.args[1], test.args[2], test.filter)
+			total, err := strconv.Atoi(languageMap[k])
 			assert.NoError(t, err)
 
-			assert.Equal(t, test.expected, actual.URL)
-		})
+			analyzeURL(t, url, o, total)
+		}
+
+		o := Options{language: allLanguages}
+
+		url := client.FormatURL("xbox", o)
+
+		analyzeURL(t, url, o, 231) // 231 = 21!
+	})
+}
+
+// analyzeURL is specifically for conditions and languages tests. Lots of repeated code
+// could be moved into here. The core idea is to
+// 		1. break up the URL
+// 		2. pull out the arguments
+// 		3. find out what FormatURL set them to
+//		4. compare that to what it should be
+// A lot of this logic is done through simple math since the craigslist format
+// for most of these setting is to use integers.
+func analyzeURL(t *testing.T, url string, o Options, total int) {
+	t.Helper()
+
+	beginQ := strings.Index(url, "?")
+	urlArgs := strings.Split(url[beginQ+1:], "&")
+	for _, arg := range urlArgs {
+		pieces := strings.Split(arg, "=")
+		key := pieces[0]
+		if key != "query" && key != "sort" {
+			val, err := strconv.Atoi(pieces[1])
+			assert.NoError(t, err)
+			total -= val
+		}
 	}
+	assert.Equal(t, 0, total)
 }

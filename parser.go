@@ -29,11 +29,9 @@ func parseSearchResults(data io.Reader) ([]Listing, error) {
 	// find the resultList, everything in here will go into the listing slice
 	resultList, _ := findBy(resultSection, "class", "rows")
 
-	extractListings(resultList)
+	listings := extractListings(resultList)
 
-	// fmt.Println("the listings", listings)
-
-	return []Listing{}, nil
+	return listings, nil
 }
 
 // findBy takes a parent node and iterates recursevly through the nodes
@@ -75,14 +73,14 @@ func findAttr(attributes []html.Attribute, targetName string) (name string, val 
 	return "", ""
 }
 
+// Text is stored as data on a TextType node as a child of the parent
+// that it is contained in. This function will go all the way down
+// checking node types. When FirstChild and NextSibling are both nil
+// as well as the correct type, return the data
 func findText(n *html.Node) (text string) {
 	if n == nil {
 		return ""
 	}
-	// Text is stored as data on a TextType node as a child of the parent
-	// that it is contained in. This function will go all the way down
-	// checking node types. When FirstChild and NextSibling are both nil
-	// as well as the correct type, return the data
 
 	if n.FirstChild != nil {
 		return findText(n.FirstChild)
@@ -104,14 +102,10 @@ func extractListings(item *html.Node) []Listing {
 	current := item.FirstChild
 
 	for {
-		// base case, end loop
 		if current == nil {
 			break
 		}
 
-		// There seems to be two types of nodes per listing. An element node
-		// and a text node. Because of this, there were duplicate postings. For a single
-		// page it was ending up with 240 instead of 120 (the correct amount).
 		if current.Type != html.ElementNode {
 			current = current.NextSibling
 			continue

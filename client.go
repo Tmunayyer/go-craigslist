@@ -1,317 +1,179 @@
-// 1 interface
-// 2 struct
-// 3 constructor
-// 4 methods
-
 package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 )
 
-// Client houses possible queries to craigslist
+const (
+	// defaults
+	protocol    = "https"
+	base        = "craigslist.org"
+	defCategory = "sss" // this represent a text search in craigslist and not a specific category
+	defPath     = "/search/"
+	defSort     = "&sort=rel"
+
+	// other useful constants
+	defCategoryOwner  = "sso"
+	defCategoryDealer = "ssq"
+
+	// defined queries and options
+	srchType          = "&srchType="
+	hasPic            = "&hasPic="
+	postedToday       = "&postedToday="
+	bundleDuplicates  = "&bundleDuplicates="
+	cryptoCurrencyOK  = "&crypto_currency_ok="
+	deliveryAvailable = "&delivery_available="
+	minPrice          = "&min_price="
+	maxPrice          = "&max_price="
+	language          = "&language="
+	condition         = "&condition="
+)
+
+// Client represents the interface with Craigslist.
 type Client interface {
-	// Prerequisites
-	Initialize(ctx context.Context) error
-
-	// Primary Methods
-	FetchCategories(ctx context.Context) (map[string]Category, error)
-	FetchLocations(ctx context.Context) (map[string]Location, error)
-	BuildQuery(loc string, cat string, term string, filters Filters) (Query, error)
-	Search(ctx context.Context, q Query) ([]Listing, error)
-
-	// Convenience
-	PrintCategories() // Prints categories on the client
-	PrintLocations()  // Prints locations on the client
+	FormatURL(term string, options Options) string
+	GetListings(ctx context.Context, url string) ([]Listing, error)
 }
 
 // Client represents the main entrypoint to the API
 type client struct {
-	initialized bool
-	Categories  map[string]Category
-	Locations   map[string]Location
+	location string
 }
 
-const (
-	// these are not really helpful and can be skipped
-	categoriesURL = "https://reference.craigslist.org/Categories"
-	locationsURL  = "http://reference.craigslist.org/Areas"
-)
-
-// NewClient needs context for the Initialize function. Initialize will make two http requests
-// in order to get defined categories and areas from craigslist. These properties populate maps
-// to provide a library later and validation to prevent bad requests from Search.
-func NewClient(ctx context.Context) (Client, error) {
-	c := client{}
-	err := c.Initialize(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing clinet: %v", err)
-	}
-
+// NewClient will instantiate a client, set the location, and return a pointer.
+func NewClient(ctx context.Context, location string) (Client, error) {
+	c := client{location: location}
 	return &c, nil
 }
 
-// Initialize will instantiate datastructures on the Client struct
-func (c *client) Initialize(ctx context.Context) error {
-	// These functions are required to run before any other functions can be run. The purpose
-	// of these functions is to get an up to date mapping of allowed locations and categories
-	// from craigslist. These value will populate maps on the client that will later be used
-	// for query validation in BuildQuery to prevent errored responses or invalid parameters
-	// for the Search function
+// Options represents available filters when constructing a URL.
+type Options struct {
+	// params
+	location string // OPTIONAL: defaults to location provided on intialization, providing location here will overrides init value
+	category string // OPTIONAL: defaults to constant defCategory, providing category overrides default variable
 
-	c.initialized = true
-	c.Categories = make(map[string]Category)
-	c.Locations = make(map[string]Location)
-
-	_, err := c.FetchLocations(ctx)
-	if err != nil {
-		return fmt.Errorf("error fetching locations: %v", err)
-	}
-	_, err = c.FetchCategories(ctx)
-	if err != nil {
-		return fmt.Errorf("error fetching categories: %v", err)
-	}
-
-	return nil
+	// filters
+	// filters with tuple values are represented as [input value, mapped value]
+	postedBy          string   // OPTIONAL: [all, sss], [owner, sso], [dealer, ssq] attention: this only works for default search (sss), not specific categories
+	srchType          bool     // OPTIONAL: true or false; dev note - uses "T" or "F" instead of 1 or 0
+	hasPic            bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	postedToday       bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	bundleDuplicates  bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	cryptoCurrencyOK  bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	deliveryAvailable bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	minPrice          string   // OPTIONAL: example = 100
+	maxPrice          string   // OPTIONAL: example = 500
+	condition         []string // OPTIONAL: [new, 10], [like new, 20], [excellent, 30], [good, 40], [fair, 50], [salvage, 60]
+	language          []string // OPTIONAL: [af, 1], [ca, 2], [da, 3], [de, 4], [en, 5], [es, 6], [fi, 7], [fr, 8], [it, 9], [nl, 10], [no, 11], [pt, 12], [sv, 13], [tl, 14], [tr, 15], [zh, 16], [ar, 17], [ja, 18], [ko, 19], [ru, 20], [vi, 21]
 }
 
-// Category represents a valid Craigslist category that can be queried
-type Category struct {
-	Abbreviation string
-	CategoryID   int
-	Description  string
-	Type         string
+// FormatURL is used for programaticaly constructing craigslist search urls.
+func (c *client) FormatURL(term string, options Options) string {
+	finalLocation := options.location
+	if finalLocation == "" {
+		finalLocation = c.location
+	}
+
+	finalCategory := options.category
+	if finalCategory == "" {
+		if options.postedBy == "owner" {
+			finalCategory = defCategoryOwner
+		} else if options.postedBy == "dealer" {
+			finalCategory = defCategoryDealer
+		} else {
+			finalCategory = defCategory
+		}
+	}
+
+	formattedTerm := formatTerm(term)
+
+	var url string
+	url = protocol + "://" + finalLocation + "." + base + defPath + finalCategory + "?query=" + formattedTerm + defSort
+
+	var args string
+	if options.srchType {
+		args += srchType + "T"
+	}
+
+	if options.postedToday {
+		args += postedToday + "1"
+	}
+
+	if options.hasPic {
+		args += hasPic + "1"
+	}
+
+	if options.bundleDuplicates {
+		args += bundleDuplicates + "1"
+	}
+
+	if options.cryptoCurrencyOK {
+		args += cryptoCurrencyOK + "1"
+	}
+
+	if options.deliveryAvailable {
+		args += deliveryAvailable + "1"
+	}
+
+	if options.minPrice != "" {
+		args += minPrice + options.minPrice
+	}
+
+	if options.maxPrice != "" {
+		args += maxPrice + options.maxPrice
+	}
+
+	conditionMap := map[string]string{"new": "10", "like new": "20", "excellent": "30", "good": "40", "fair": "50", "salvage": "60"}
+	if len(options.condition) > 0 {
+		for _, c := range options.condition {
+			url += condition + conditionMap[c]
+		}
+	}
+
+	languageMap := map[string]string{"af": "1", "ca": "2", "da": "3", "de": "4", "en": "5", "es": "6", "fi": "7", "fr": "8", "it": "9", "nl": "10", "no": "11", "pt": "12", "sv": "13", "tl": "14", "tr": "15", "zh": "16", "ar": "17", "ja": "18", "ko": "19", "ru": "20", "vi": "21"}
+	if len(options.language) > 0 {
+		for _, l := range options.language {
+			url += language + languageMap[l]
+		}
+	}
+
+	url += args
+
+	return url
 }
 
-// Location represents a single valid craigslist location
-type Location struct {
-	Abbreviation     string
-	AreaID           int
-	Country          string
-	Description      string
-	Hostname         string
-	Latitude         float32
-	Longitude        float32
-	Region           string
-	ShortDescription string
-	Timezone         string
-	SubAreas         []SubArea
-}
-
-// SubArea is a representation of a searchable area within a location, these are
-// filters that can be provided in a given search using the SubAreaID
-type SubArea struct {
-	Abbreviation     string
-	Description      string
-	ShortDescription string
-	SubAreaID        int
-}
-
-// FetchLocations provides a list of all locations available on craiglist for query
-// Reference: https://www.craigslist.org/about/reference
-func (c *client) FetchLocations(ctx context.Context) (map[string]Location, error) {
-	resp, err := http.Get(locationsURL)
-	if err != nil {
-		return nil, fmt.Errorf("error getting locations: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("location list failed: %s", resp.Status)
-	}
-
-	return setLocations(c, resp)
-}
-
-func setLocations(c *client, resp *http.Response) (map[string]Location, error) {
-	b, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %v", err)
-	}
-
-	JSONtoSlice := []Location{}
-	err = json.Unmarshal(b, &JSONtoSlice)
-	if err != nil {
-		return nil, fmt.Errorf("error unmarshaling json: %v", err)
-	}
-
-	for _, loc := range JSONtoSlice {
-		c.Locations[loc.Abbreviation] = loc
-	}
-
-	return c.Locations, nil
-}
-
-// FetchCategories provides a list of all categories available on craigslist for query
-// Reference: https://www.craigslist.org/about/reference
-func (c *client) FetchCategories(ctx context.Context) (map[string]Category, error) {
-	resp, err := http.Get(categoriesURL)
-	if err != nil {
-		return nil, fmt.Errorf("error getting categories: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("category list failed: %s", resp.Status)
-	}
-
-	return setCategories(c, resp)
-}
-
-func setCategories(c *client, resp *http.Response) (map[string]Category, error) {
-	b, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
-	if err != nil {
-		return nil, fmt.Errorf("unable to read response body: %v", err)
-	}
-
-	JSONtoSlice := []Category{}
-	err = json.Unmarshal(b, &JSONtoSlice)
-	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal JSON: %v", err)
-	}
-
-	for _, cat := range JSONtoSlice {
-		c.Categories[cat.Abbreviation] = cat
-	}
-
-	return c.Categories, nil
-}
-
-// PrintCategories prints a list of all valid categories on the Client struct
-func (c *client) PrintCategories() {
-	fmt.Println("-- CATEGORIES")
-	for key, obj := range c.Categories {
-		fmt.Printf("\n\raccess key: %s, details: %+v", key, obj)
-	}
-}
-
-// PrintLocations prints a list of all valid locations on the Client struct
-func (c *client) PrintLocations() {
-	fmt.Println("-- LOCATIONS")
-	for key, obj := range c.Locations {
-		fmt.Printf("\n\raccess key: %s, details: %+v", key, obj)
-	}
-}
-
-// Filters represents available filters
-type Filters struct {
-	srchType         bool // options: (T) true or (F) false
-	hasPic           bool // options: (1) true or (0) false
-	postedToday      bool // options: (1) true or (0) false
-	bundleDuplicates bool // options: (1) true or (0) false
-	searchNearby     bool // options: (1) true or (0) false
-}
-
-// Query is the struct representation of a query passed to the Search function
-type Query struct {
-	URL      string
-	Hostname string
-	Category string
-	Term     string
-	Filters  string
-}
-
-// BuildQuery will take in its arguments and format a query pattern
-func (c *client) BuildQuery(loc string, cat string, term string, filters Filters) (Query, error) {
-	// validate location
-	location, has := c.Locations[loc]
-	if !has {
-		return Query{}, fmt.Errorf("invalid location provided: %s", loc)
-	}
-
-	// validate category
-	_, has = c.Categories[cat]
-	if !has {
-		return Query{}, fmt.Errorf("invalid category provided: %s", cat)
-	}
-
-	requestURL := fmt.Sprintf("https://%s.craigslist.org/d/placeholder/search/%s", location.Hostname, cat)
-
-	queryString, qhas := formatQuery(term)
-	if qhas == true {
-		requestURL += queryString
-	}
-	filterString, fhas := formatFilters(filters)
-	if qhas == false && fhas == true {
-		requestURL += "?" + filterString
-	} else if fhas == true {
-		requestURL += filterString
-	}
-
-	q := Query{
-		URL:      requestURL,
-		Hostname: location.Hostname,
-		Category: cat,
-		Term:     term,
-	}
-
-	return q, nil
-}
-
-func formatFilters(filters Filters) (query string, has bool) {
-	if filters.srchType == true {
-		query += "&srchType=T"
-		has = true
-	}
-
-	if filters.hasPic == true {
-		query += "&hasPic=1"
-		has = true
-	}
-
-	if filters.postedToday == true {
-		query += "&postedToday=1"
-		has = true
-	}
-
-	if filters.bundleDuplicates == true {
-		query += "&bundleDuplicates=1"
-		has = true
-	}
-
-	return query, has
-}
-
-func formatQuery(term string) (query string, has bool) {
-	if term == "" {
-		return query, has
-	}
-	has = true
-
-	formattedTerms := strings.Split(term, " ")
-	for i, piece := range formattedTerms {
-		formattedTerms[i] = url.QueryEscape(piece)
-	}
-	joinedTerm := strings.Join(formattedTerms, "+")
-
-	query = "?query=" + joinedTerm
-
-	return query, has
-}
-
-func (c *client) Search(ctx context.Context, q Query) ([]Listing, error) {
-	resp, err := http.Get(q.URL)
+// GetListings simply takes a URL and returns the first page of listings on that page.
+// TODO: add pagination ?
+func (c *client) GetListings(ctx context.Context, url string) ([]Listing, error) {
+	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error send request: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
-		return nil, fmt.Errorf("location fetching from query url: %s", resp.Status)
+		return nil, fmt.Errorf("error fetching from url: %s", resp.Status)
 	}
 
-	_, err = parseSearchResults(resp.Body)
+	listings, err := parseSearchResults(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing search results: %v", err)
 	}
 
-	return []Listing{}, nil
+	return listings, nil
+}
+
+func formatTerm(term string) string {
+	pieces := strings.Split(term, " ")
+
+	escapedPieces := []string{}
+	for _, piece := range pieces {
+		escapedPieces = append(escapedPieces, url.QueryEscape(piece))
+	}
+
+	return strings.Join(escapedPieces, "+")
 }
