@@ -1,8 +1,3 @@
-// 1 interface
-// 2 struct
-// 3 constructor
-// 4 methods
-
 package main
 
 import (
@@ -12,22 +7,6 @@ import (
 	"net/url"
 	"strings"
 )
-
-// Client houses possible queries to craigslist
-type Client interface {
-	// Prerequisites
-	Initialize(ctx context.Context, location string) error
-
-	// Primary Methods
-	FormatURL(term string, options Options) (string, error)
-	GetListings(ctx context.Context, url string) ([]Listing, error)
-}
-
-// Client represents the main entrypoint to the API
-type client struct {
-	initialized bool
-	location    string
-}
 
 const (
 	// defaults
@@ -54,35 +33,31 @@ const (
 	condition         = "&condition="
 )
 
-// NewClient needs context for the Initialize function. Initialize will make two http requests
-// in order to get defined categories and areas from craigslist. These properties populate maps
-// to provide a library later and validation to prevent bad requests from Search.
-func NewClient(ctx context.Context, location string) (Client, error) {
-	c := client{}
-	err := c.Initialize(ctx, location)
-	if err != nil {
-		return nil, fmt.Errorf("error initializing clinet: %v", err)
-	}
+// Client represents the interface with Craigslist.
+type Client interface {
+	FormatURL(term string, options Options) string
+	GetListings(ctx context.Context, url string) ([]Listing, error)
+}
 
+// Client represents the main entrypoint to the API
+type client struct {
+	location string
+}
+
+// NewClient will instantiate a client, set the location, and return a pointer.
+func NewClient(ctx context.Context, location string) (Client, error) {
+	c := client{location: location}
 	return &c, nil
 }
 
-// Initialize will instantiate datastructures on the Client struct
-func (c *client) Initialize(ctx context.Context, location string) error {
-	c.location = location
-	c.initialized = true
-
-	return nil
-}
-
-// Options represents available filters
+// Options represents available filters when constructing a URL.
 type Options struct {
 	// params
 	location string // OPTIONAL: defaults to location provided on intialization, providing location here will overrides init value
 	category string // OPTIONAL: defaults to constant defCategory, providing category overrides default variable
 
 	// filters
-	postedBy          int      // OPTIONAL: [all, 1], [owner, 2], [dealder, 3] note: this only works for general search, not specific categories
+	postedBy          int      // OPTIONAL: [all, 1], [owner, 2], [dealder, 3] note: this only works for default search (sss), not specific categories
 	srchType          bool     // OPTIONAL: dev note - uses "T" or "F" instead of 1 or 0
 	hasPic            bool     // OPTIONAL: dev note - uses 1 for true, 0 for false
 	postedToday       bool     // OPTIONAL: dev note - uses 1 for true, 0 for false
@@ -96,8 +71,7 @@ type Options struct {
 }
 
 // FormatURL is used for programaticaly constructing craigslist search urls.
-func (c *client) FormatURL(term string, options Options) (string, error) {
-	// fmt.Printf("the options: %+v", options)
+func (c *client) FormatURL(term string, options Options) string {
 	finalLocation := options.location
 	if finalLocation == "" {
 		finalLocation = c.location
@@ -146,15 +120,7 @@ func (c *client) FormatURL(term string, options Options) (string, error) {
 		args += maxPrice + options.maxPrice
 	}
 
-	conditionMap := map[string]string{
-		"new":       "10",
-		"like new":  "20",
-		"excellent": "30",
-		"good":      "40",
-		"fair":      "50",
-		"salvage":   "60",
-	}
-
+	conditionMap := map[string]string{"new": "10", "like new": "20", "excellent": "30", "good": "40", "fair": "50", "salvage": "60"}
 	if len(options.condition) > 0 {
 		for _, c := range options.condition {
 			url += condition + conditionMap[c]
@@ -162,7 +128,6 @@ func (c *client) FormatURL(term string, options Options) (string, error) {
 	}
 
 	languageMap := map[string]string{"af": "1", "ca": "2", "da": "3", "de": "4", "en": "5", "es": "6", "fi": "7", "fr": "8", "it": "9", "nl": "10", "no": "11", "pt": "12", "sv": "13", "tl": "14", "tr": "15", "zh": "16", "ar": "17", "ja": "18", "ko": "19", "ru": "20", "vi": "21"}
-
 	if len(options.language) > 0 {
 		for _, l := range options.language {
 			url += language + languageMap[l]
@@ -171,7 +136,7 @@ func (c *client) FormatURL(term string, options Options) (string, error) {
 
 	url += args
 
-	return url, nil
+	return url
 }
 
 func formatTerm(term string) string {

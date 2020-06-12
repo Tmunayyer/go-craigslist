@@ -15,23 +15,20 @@ func TestFormatURL(t *testing.T) {
 
 	t.Run("no options provided, basic term", func(t *testing.T) {
 		expected := "https://newyork.craigslist.org/search/sss?query=xbox&sort=rel"
-		url, err := client.FormatURL("xbox", Options{})
-		assert.NoError(t, err)
+		url := client.FormatURL("xbox", Options{})
 		assert.Equal(t, expected, url)
 	})
 
 	t.Run("properly escaping term", func(t *testing.T) {
 		expected := "https://newyork.craigslist.org/search/sss?query=xbox+123+.+%23%24%25&sort=rel"
-		url, err := client.FormatURL("xbox 123 . #$%", Options{})
-		assert.NoError(t, err)
+		url := client.FormatURL("xbox 123 . #$%", Options{})
 		assert.Equal(t, expected, url)
 	})
 
 	t.Run("should overwright location if provided by options", func(t *testing.T) {
 		o := Options{location: "testing"}
 		expected := "https://testing.craigslist.org/search/sss?query=xbox&sort=rel"
-		url, err := client.FormatURL("xbox", o)
-		assert.NoError(t, err)
+		url := client.FormatURL("xbox", o)
 		assert.Equal(t, expected, url)
 	})
 
@@ -39,8 +36,7 @@ func TestFormatURL(t *testing.T) {
 		o := Options{category: "aaa"}
 		expected := "https://newyork.craigslist.org/search/aaa?query=xbox&sort=rel"
 
-		url, err := client.FormatURL("xbox", o)
-		assert.NoError(t, err)
+		url := client.FormatURL("xbox", o)
 		assert.Equal(t, expected, url)
 	})
 
@@ -54,12 +50,10 @@ func TestFormatURL(t *testing.T) {
 			deliveryAvailable: true,
 		}
 
-		url, err := client.FormatURL("xbox", o)
-		assert.NoError(t, err)
+		url := client.FormatURL("xbox", o)
 
 		// lookup each arg by name in a map and ensure everything is there
 		// with appropriate value
-
 		beginQ := strings.Index(url, "?")
 		urlArgs := strings.Split(url[beginQ+1:], "&")
 		argMap := map[string]string{}
@@ -114,8 +108,7 @@ func TestFormatURL(t *testing.T) {
 			maxPrice: "500",
 		}
 
-		url, err := client.FormatURL("xbox", o)
-		assert.NoError(t, err)
+		url := client.FormatURL("xbox", o)
 
 		beginQ := strings.Index(url, "?")
 		urlArgs := strings.Split(url[beginQ+1:], "&")
@@ -163,9 +156,7 @@ func TestFormatURL(t *testing.T) {
 				expected: 210, // 10 + 20 + 30 + 40 + 50 + 60
 			},
 		} {
-			url, err := client.FormatURL("xbox", test.given)
-			assert.NoError(t, err)
-
+			url := client.FormatURL("xbox", test.given)
 			analyzeURL(t, url, test.given, test.expected)
 		}
 	})
@@ -180,8 +171,7 @@ func TestFormatURL(t *testing.T) {
 
 			o := Options{language: []string{k}}
 
-			url, err := client.FormatURL("xbox", o)
-			assert.NoError(t, err)
+			url := client.FormatURL("xbox", o)
 
 			total, err := strconv.Atoi(languageMap[k])
 			assert.NoError(t, err)
@@ -191,8 +181,7 @@ func TestFormatURL(t *testing.T) {
 
 		o := Options{language: allLanguages}
 
-		url, err := client.FormatURL("xbox", o)
-		assert.NoError(t, err)
+		url := client.FormatURL("xbox", o)
 
 		analyzeURL(t, url, o, 231) // 231 = 21!
 	})
