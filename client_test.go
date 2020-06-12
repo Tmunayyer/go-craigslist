@@ -10,72 +10,6 @@ import (
 )
 
 func TestFormatURL(t *testing.T) {
-	// note: expected variables should be pulled directly from craigslist
-	// for all tests except randomized
-
-	// this is a map of interfaces to aggregate all the
-	// different types of possibilities resulting from options
-	// argMap := struct {
-	// 	truthy map[string]string
-	// 	falsey map[string]string
-	// }{
-	// 	truthy: map[string]string{
-	// 		// BOOLEANS
-	// 		"srchType":          "T",
-	// 		"hasPic":            "1",
-	// 		"postedToday":       "1",
-	// 		"bundleDuplicated":  "1",
-	// 		"cryptoCurrencyOK":  "1",
-	// 		"deliveryAvailable": "1",
-
-	// 		// PRICES
-	// 		// minPrice and maxPrice are variable, just check against actual options struct
-
-	// 		// CONDITIONS
-	// 		// language and conditions should be present if passed
-	// 		// and should map to correct integer in string value
-	// 		"new":       "10",
-	// 		"like new":  "20",
-	// 		"excellent": "30",
-	// 		"good":      "40",
-	// 		"fair":      "50",
-	// 		"salvage":   "60",
-
-	// 		// LANGUAGES
-	// 		"af": "1",
-	// 		"ca": "2",
-	// 		"da": "3",
-	// 		"de": "4",
-	// 		"en": "5",
-	// 		"es": "6",
-	// 		"fi": "7",
-	// 		"fr": "8",
-	// 		"it": "9",
-	// 		"nl": "10",
-	// 		"no": "11",
-	// 		"pt": "12",
-	// 		"sv": "13",
-	// 		"tl": "14",
-	// 		"tr": "15",
-	// 		"zh": "16",
-	// 		"ar": "17",
-	// 		"ja": "18",
-	// 		"ko": "19",
-	// 		"ru": "20",
-	// 		"vi": "21",
-	// 	},
-	// 	falsey: map[string]string{
-	// 		"srchType":          "F",
-	// 		"hasPic":            "0",
-	// 		"postedToday":       "0",
-	// 		"bundleDuplicated":  "0",
-	// 		"cryptoCurrencyOK":  "0",
-	// 		"deliveryAvailable": "0",
-
-	// 		// minPrice, maxPrice, language, and conditions should be missing if not passed
-	// 	},
-	// }
-
 	client, err := NewClient(context.Background(), "newyork")
 	assert.NoError(t, err)
 
@@ -264,10 +198,14 @@ func TestFormatURL(t *testing.T) {
 	})
 }
 
-// this function is really to just reduce the repetitive blocks of code
-// within the tests for conditions and languages. These mappings relate strings
-// to integers. With that in mind, we can check for appropriate mapping
-// my passing a total, subtracting the passed values, and expecting a 0 result.
+// analyzeURL is specifically for conditions and languages tests. Lots of repeated code
+// could be moved into here. The core idea is to
+// 		1. break up the URL
+// 		2. pull out the arguments
+// 		3. find out what FormatURL set them to
+//		4. compare that to what it should be
+// A lot of this logic is done through simple math since the craigslist format
+// for most of these setting is to use integers.
 func analyzeURL(t *testing.T, url string, o Options, total int) {
 	t.Helper()
 
