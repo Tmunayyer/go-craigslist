@@ -33,14 +33,16 @@ const (
 	condition         = "&condition="
 )
 
-// Client represents the interface with Craigslist.
-type Client interface {
+// API represents the interface with Craigslist.
+type API interface {
 	FormatURL(term string, options Options) string
 	GetListings(ctx context.Context, url string) ([]Listing, error)
 }
 
-type client struct {
-	location string
+// Client is return from New Client with a Location. This Location is used as
+// the default value in FormatURL unless one is provided in Options.
+type Client struct {
+	Location string
 }
 
 // Options represents available parameters to construct a URL. Filters
@@ -62,16 +64,16 @@ type Options struct {
 }
 
 // NewClient will instantiate a client, set the location, and return a pointer.
-func NewClient(location string) Client {
-	c := client{location: location}
+func NewClient(location string) API {
+	c := Client{Location: location}
 	return &c
 }
 
 // FormatURL should be used to programatically construct a URL using a term and Options.
-func (c *client) FormatURL(term string, options Options) string {
+func (c *Client) FormatURL(term string, options Options) string {
 	finalLocation := options.Location
 	if finalLocation == "" {
-		finalLocation = c.location
+		finalLocation = c.Location
 	}
 
 	finalCategory := options.Category
@@ -143,7 +145,7 @@ func (c *client) FormatURL(term string, options Options) string {
 }
 
 // GetListings simply takes a URL and returns the first page of listings.
-func (c *client) GetListings(ctx context.Context, url string) ([]Listing, error) {
+func (c *Client) GetListings(ctx context.Context, url string) ([]Listing, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error send request: %v", err)
