@@ -6,7 +6,7 @@ This is a small library to programatically search craigslist.com. Inspired by [t
 - [Quickstart](#quickstart)
 - [Options](#options)
 - [Categories and Locations](#categoriesandlocations)
-- [Documentation](#https://godoc.org/github.com/Tmunayyer/go-craigslist)
+- [Documentation](https://godoc.org/github.com/Tmunayyer/go-craigslist)
 
 ## Quickstart
 ```go
