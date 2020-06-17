@@ -24,14 +24,14 @@ func TestFormatURL(t *testing.T) {
 	})
 
 	t.Run("should overwright location if provided by options", func(t *testing.T) {
-		o := Options{location: "testing"}
+		o := Options{Location: "testing"}
 		expected := "https://testing.craigslist.org/search/sss?query=xbox&sort=rel"
 		url := client.FormatURL("xbox", o)
 		assert.Equal(t, expected, url)
 	})
 
 	t.Run("should overwright category if provided by options", func(t *testing.T) {
-		o := Options{category: "aaa"}
+		o := Options{Category: "aaa"}
 		expected := "https://newyork.craigslist.org/search/aaa?query=xbox&sort=rel"
 
 		url := client.FormatURL("xbox", o)
@@ -40,12 +40,12 @@ func TestFormatURL(t *testing.T) {
 
 	t.Run("should account for bool options", func(t *testing.T) {
 		o := Options{
-			srchType:          true,
-			hasPic:            true,
-			postedToday:       true,
-			bundleDuplicates:  true,
-			cryptoCurrencyOK:  true,
-			deliveryAvailable: true,
+			SrchType:          true,
+			HasPic:            true,
+			PostedToday:       true,
+			BundleDuplicates:  true,
+			CryptoCurrencyOK:  true,
+			DeliveryAvailable: true,
 		}
 
 		url := client.FormatURL("xbox", o)
@@ -61,37 +61,37 @@ func TestFormatURL(t *testing.T) {
 		}
 
 		numberOfOptions := 0
-		if o.srchType {
+		if o.SrchType {
 			assert.Equal(t, "T", argMap["srchType"])
 			numberOfOptions++
 		}
 
-		if o.hasPic {
+		if o.HasPic {
 			assert.Equal(t, "1", argMap["hasPic"])
 			numberOfOptions++
 		}
 
-		if o.postedToday {
+		if o.PostedToday {
 			assert.Equal(t, "1", argMap["postedToday"])
 			numberOfOptions++
 		}
 
-		if o.postedToday {
+		if o.PostedToday {
 			assert.Equal(t, "1", argMap["postedToday"])
 			numberOfOptions++
 		}
 
-		if o.bundleDuplicates {
+		if o.BundleDuplicates {
 			assert.Equal(t, "1", argMap["bundleDuplicates"])
 			numberOfOptions++
 		}
 
-		if o.cryptoCurrencyOK {
+		if o.CryptoCurrencyOK {
 			assert.Equal(t, "1", argMap["crypto_currency_ok"])
 			numberOfOptions++
 		}
 
-		if o.deliveryAvailable {
+		if o.DeliveryAvailable {
 			assert.Equal(t, "1", argMap["delivery_available"])
 			numberOfOptions++
 		}
@@ -102,8 +102,8 @@ func TestFormatURL(t *testing.T) {
 
 	t.Run("accounts for min and max price", func(t *testing.T) {
 		o := Options{
-			minPrice: "100",
-			maxPrice: "500",
+			MinPrice: "100",
+			MaxPrice: "500",
 		}
 
 		url := client.FormatURL("xbox", o)
@@ -116,8 +116,8 @@ func TestFormatURL(t *testing.T) {
 			argMap[pieces[0]] = pieces[1]
 		}
 
-		assert.Equal(t, o.minPrice, argMap["min_price"])
-		assert.Equal(t, o.maxPrice, argMap["max_price"])
+		assert.Equal(t, o.MinPrice, argMap["min_price"])
+		assert.Equal(t, o.MaxPrice, argMap["max_price"])
 	})
 
 	t.Run("accounts for conditions", func(t *testing.T) {
@@ -126,31 +126,31 @@ func TestFormatURL(t *testing.T) {
 			expected int
 		}{
 			{
-				given:    Options{condition: []string{"new"}},
+				given:    Options{Condition: []string{"new"}},
 				expected: 10,
 			},
 			{
-				given:    Options{condition: []string{"like new"}},
+				given:    Options{Condition: []string{"like new"}},
 				expected: 20,
 			},
 			{
-				given:    Options{condition: []string{"excellent"}},
+				given:    Options{Condition: []string{"excellent"}},
 				expected: 30,
 			},
 			{
-				given:    Options{condition: []string{"good"}},
+				given:    Options{Condition: []string{"good"}},
 				expected: 40,
 			},
 			{
-				given:    Options{condition: []string{"fair"}},
+				given:    Options{Condition: []string{"fair"}},
 				expected: 50,
 			},
 			{
-				given:    Options{condition: []string{"salvage"}},
+				given:    Options{Condition: []string{"salvage"}},
 				expected: 60,
 			},
 			{
-				given:    Options{condition: []string{"new", "like new", "excellent", "good", "fair", "salvage"}},
+				given:    Options{Condition: []string{"new", "like new", "excellent", "good", "fair", "salvage"}},
 				expected: 210, // 10 + 20 + 30 + 40 + 50 + 60
 			},
 		} {
@@ -167,7 +167,7 @@ func TestFormatURL(t *testing.T) {
 			// push to a slice to use for testing all langs later
 			allLanguages = append(allLanguages, k)
 
-			o := Options{language: []string{k}}
+			o := Options{Language: []string{k}}
 
 			url := client.FormatURL("xbox", o)
 
@@ -177,7 +177,7 @@ func TestFormatURL(t *testing.T) {
 			analyzeURL(t, url, o, total)
 		}
 
-		o := Options{language: allLanguages}
+		o := Options{Language: allLanguages}
 
 		url := client.FormatURL("xbox", o)
 

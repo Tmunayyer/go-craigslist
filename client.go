@@ -46,19 +46,19 @@ type client struct {
 // Options represents available parameters to construct a URL. Filters
 // with tuple values are represented as [input value, mapped value].
 type Options struct {
-	location          string   // OPTIONAL: defaults to location provided on intialization, providing location here will overrides init value
-	category          string   // OPTIONAL: defaults to constant defCategory, providing category overrides default variable
-	postedBy          string   // OPTIONAL: [all, sss], [owner, sso], [dealer, ssq] attention: this only works for default search (sss), not specific categories
-	srchType          bool     // OPTIONAL: true or false; dev note - uses "T" or "F" instead of 1 or 0
-	hasPic            bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
-	postedToday       bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
-	bundleDuplicates  bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
-	cryptoCurrencyOK  bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
-	deliveryAvailable bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
-	minPrice          string   // OPTIONAL: example = 100
-	maxPrice          string   // OPTIONAL: example = 500
-	condition         []string // OPTIONAL: [new, 10], [like new, 20], [excellent, 30], [good, 40], [fair, 50], [salvage, 60]
-	language          []string // OPTIONAL: [af, 1], [ca, 2], [da, 3], [de, 4], [en, 5], [es, 6], [fi, 7], [fr, 8], [it, 9], [nl, 10], [no, 11], [pt, 12], [sv, 13], [tl, 14], [tr, 15], [zh, 16], [ar, 17], [ja, 18], [ko, 19], [ru, 20], [vi, 21]
+	Location          string   // OPTIONAL: defaults to location provided on intialization, providing location here will overrides init value
+	Category          string   // OPTIONAL: defaults to constant defCategory, providing category overrides default variable
+	PostedBy          string   // OPTIONAL: [all, sss], [owner, sso], [dealer, ssq] attention: this only works for default search (sss), not specific categories
+	SrchType          bool     // OPTIONAL: true or false; dev note - uses "T" or "F" instead of 1 or 0
+	HasPic            bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	PostedToday       bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	BundleDuplicates  bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	CryptoCurrencyOK  bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	DeliveryAvailable bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
+	MinPrice          string   // OPTIONAL: example = 100
+	MaxPrice          string   // OPTIONAL: example = 500
+	Condition         []string // OPTIONAL: [new, 10], [like new, 20], [excellent, 30], [good, 40], [fair, 50], [salvage, 60]
+	Language          []string // OPTIONAL: [af, 1], [ca, 2], [da, 3], [de, 4], [en, 5], [es, 6], [fi, 7], [fr, 8], [it, 9], [nl, 10], [no, 11], [pt, 12], [sv, 13], [tl, 14], [tr, 15], [zh, 16], [ar, 17], [ja, 18], [ko, 19], [ru, 20], [vi, 21]
 }
 
 // NewClient will instantiate a client, set the location, and return a pointer.
@@ -69,16 +69,16 @@ func NewClient(location string) Client {
 
 // FormatURL should be used to programatically construct a URL using a term and Options.
 func (c *client) FormatURL(term string, options Options) string {
-	finalLocation := options.location
+	finalLocation := options.Location
 	if finalLocation == "" {
 		finalLocation = c.location
 	}
 
-	finalCategory := options.category
+	finalCategory := options.Category
 	if finalCategory == "" {
-		if options.postedBy == "owner" {
+		if options.PostedBy == "owner" {
 			finalCategory = defCategoryOwner
-		} else if options.postedBy == "dealer" {
+		} else if options.PostedBy == "dealer" {
 			finalCategory = defCategoryDealer
 		} else {
 			finalCategory = defCategory
@@ -91,48 +91,48 @@ func (c *client) FormatURL(term string, options Options) string {
 	url = protocol + "://" + finalLocation + "." + base + defPath + finalCategory + "?query=" + formattedTerm + defSort
 
 	var args string
-	if options.srchType {
+	if options.SrchType {
 		args += srchType + "T"
 	}
 
-	if options.postedToday {
+	if options.PostedToday {
 		args += postedToday + "1"
 	}
 
-	if options.hasPic {
+	if options.HasPic {
 		args += hasPic + "1"
 	}
 
-	if options.bundleDuplicates {
+	if options.BundleDuplicates {
 		args += bundleDuplicates + "1"
 	}
 
-	if options.cryptoCurrencyOK {
+	if options.CryptoCurrencyOK {
 		args += cryptoCurrencyOK + "1"
 	}
 
-	if options.deliveryAvailable {
+	if options.DeliveryAvailable {
 		args += deliveryAvailable + "1"
 	}
 
-	if options.minPrice != "" {
-		args += minPrice + options.minPrice
+	if options.MinPrice != "" {
+		args += minPrice + options.MinPrice
 	}
 
-	if options.maxPrice != "" {
-		args += maxPrice + options.maxPrice
+	if options.MaxPrice != "" {
+		args += maxPrice + options.MaxPrice
 	}
 
 	conditionMap := map[string]string{"new": "10", "like new": "20", "excellent": "30", "good": "40", "fair": "50", "salvage": "60"}
-	if len(options.condition) > 0 {
-		for _, c := range options.condition {
+	if len(options.Condition) > 0 {
+		for _, c := range options.Condition {
 			url += condition + conditionMap[c]
 		}
 	}
 
 	languageMap := map[string]string{"af": "1", "ca": "2", "da": "3", "de": "4", "en": "5", "es": "6", "fi": "7", "fr": "8", "it": "9", "nl": "10", "no": "11", "pt": "12", "sv": "13", "tl": "14", "tr": "15", "zh": "16", "ar": "17", "ja": "18", "ko": "19", "ru": "20", "vi": "21"}
-	if len(options.language) > 0 {
-		for _, l := range options.language {
+	if len(options.Language) > 0 {
+		for _, l := range options.Language {
 			url += language + languageMap[l]
 		}
 	}
