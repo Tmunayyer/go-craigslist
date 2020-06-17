@@ -39,25 +39,15 @@ type Client interface {
 	GetListings(ctx context.Context, url string) ([]Listing, error)
 }
 
-// Client represents the main entrypoint to the API
 type client struct {
 	location string
 }
 
-// NewClient will instantiate a client, set the location, and return a pointer.
-func NewClient(location string) Client {
-	c := client{location: location}
-	return &c
-}
-
-// Options represents available filters when constructing a URL.
+// Options represents available parameters to construct a URL. Filters
+// with tuple values are represented as [input value, mapped value].
 type Options struct {
-	// params
-	location string // OPTIONAL: defaults to location provided on intialization, providing location here will overrides init value
-	category string // OPTIONAL: defaults to constant defCategory, providing category overrides default variable
-
-	// filters
-	// filters with tuple values are represented as [input value, mapped value]
+	location          string   // OPTIONAL: defaults to location provided on intialization, providing location here will overrides init value
+	category          string   // OPTIONAL: defaults to constant defCategory, providing category overrides default variable
 	postedBy          string   // OPTIONAL: [all, sss], [owner, sso], [dealer, ssq] attention: this only works for default search (sss), not specific categories
 	srchType          bool     // OPTIONAL: true or false; dev note - uses "T" or "F" instead of 1 or 0
 	hasPic            bool     // OPTIONAL: true or false; dev note - uses 1 for true, 0 for false
@@ -71,7 +61,13 @@ type Options struct {
 	language          []string // OPTIONAL: [af, 1], [ca, 2], [da, 3], [de, 4], [en, 5], [es, 6], [fi, 7], [fr, 8], [it, 9], [nl, 10], [no, 11], [pt, 12], [sv, 13], [tl, 14], [tr, 15], [zh, 16], [ar, 17], [ja, 18], [ko, 19], [ru, 20], [vi, 21]
 }
 
-// FormatURL is used for programaticaly constructing craigslist search urls.
+// NewClient will instantiate a client, set the location, and return a pointer.
+func NewClient(location string) Client {
+	c := client{location: location}
+	return &c
+}
+
+// FormatURL should be used to programatically construct a URL using a term and Options.
 func (c *client) FormatURL(term string, options Options) string {
 	finalLocation := options.location
 	if finalLocation == "" {
@@ -146,8 +142,7 @@ func (c *client) FormatURL(term string, options Options) string {
 	return url
 }
 
-// GetListings simply takes a URL and returns the first page of listings on that page.
-// TODO: add pagination ?
+// GetListings simply takes a URL and returns the first page of listings.
 func (c *client) GetListings(ctx context.Context, url string) ([]Listing, error) {
 	resp, err := http.Get(url)
 	if err != nil {

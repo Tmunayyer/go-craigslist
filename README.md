@@ -6,6 +6,7 @@ This is a small library to programatically search craigslist.com. Inspired by [t
 - [Quickstart](#quickstart)
 - [Options](#options)
 - [Categories and Locations](#categoriesandlocations)
+- [Documentation](#https://godoc.org/github.com/Tmunayyer/go-craigslist)
 
 ## Quickstart
 ```go
@@ -19,10 +20,8 @@ import (
 )
 
 func main() {
-    // create a new client, pass in a location
 	client := gocraigslist.NewClient("newyork")
 
-	// use your own url from a search on craigslist.com
 	listings, err := client.GetListings(context.TODO(), "https://newyork.craigslist.org/d/antiques/search/ata")
 	if err != nil {
 		panic(err)
