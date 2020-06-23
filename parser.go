@@ -3,6 +3,7 @@ package gocraigslist
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"golang.org/x/net/html"
 )
@@ -18,6 +19,8 @@ type Listing struct {
 	Hood         string
 }
 
+var nilTime = time.Time{}
+
 func parseSearchResults(data io.Reader) ([]Listing, error) {
 	doc, err := html.Parse(data)
 	if err != nil {
@@ -29,7 +32,23 @@ func parseSearchResults(data io.Reader) ([]Listing, error) {
 	// find the resultList, everything in here will go into the listing slice
 	resultList, _ := findBy(resultSection, "class", "rows")
 
-	listings := extractListings(resultList)
+	listings := extractListings(resultList, nilTime)
+
+	return listings, nil
+}
+
+func parseSearchResultsAfter(data io.Reader, date time.Time) ([]Listing, error) {
+	doc, err := html.Parse(data)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse data: %v", err)
+	}
+
+	// find the entrypoint to  the results section of the page
+	resultSection, _ := findBy(doc, "id", "sortable-results")
+	// find the resultList, everything in here will go into the listing slice
+	resultList, _ := findBy(resultSection, "class", "rows")
+
+	listings := extractListings(resultList, date)
 
 	return listings, nil
 }
@@ -97,7 +116,7 @@ func findText(n *html.Node) (text string) {
 	return ""
 }
 
-func extractListings(item *html.Node) []Listing {
+func extractListings(item *html.Node, cutoffDate time.Time) []Listing {
 	listings := []Listing{}
 	current := item.FirstChild
 
@@ -120,6 +139,18 @@ func extractListings(item *html.Node) []Listing {
 
 		datetimeNode, _ := findBy(info, "class", "result-date")
 		_, datetime := findAttr(datetimeNode.Attr, "datetime")
+
+		if cutoffDate != nilTime {
+			layout := "2006-01-02 15:04"
+			t, err := time.Parse(layout, datetime)
+			if err != nil {
+				panic(err)
+			}
+
+			if t.Before(cutoffDate) {
+				break
+			}
+		}
 
 		linkNode, _ := findBy(info, "class", "result-title hdrlnk")
 		_, link := findAttr(linkNode.Attr, "href")

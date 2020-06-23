@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const (
@@ -37,6 +38,7 @@ const (
 type API interface {
 	FormatURL(term string, options Options) string
 	GetListings(ctx context.Context, url string) ([]Listing, error)
+	GetNewListings(ctx context.Context, url string, date time.Time) ([]Listing, error)
 }
 
 // Client is return from New Client with a Location. This Location is used as
@@ -157,6 +159,27 @@ func (c *Client) GetListings(ctx context.Context, url string) ([]Listing, error)
 	}
 
 	listings, err := parseSearchResults(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing search results: %v", err)
+	}
+
+	return listings, nil
+}
+
+// GetNewListings performs the same tasks as GetListings but only
+// returns listings greater than the passed in date
+func (c *Client) GetNewListings(ctx context.Context, url string, date time.Time) ([]Listing, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("error send request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("error fetching from url: %s", resp.Status)
+	}
+
+	listings, err := parseSearchResultsAfter(resp.Body, date)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing search results: %v", err)
 	}

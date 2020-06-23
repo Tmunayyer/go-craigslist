@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/html"
@@ -75,18 +76,44 @@ func TestFindAttr(t *testing.T) {
 }
 
 func TestExtractListings(t *testing.T) {
-	data, err := ioutil.ReadFile("./test.html")
-	assert.NoError(t, err)
 
-	r := bytes.NewReader(data)
+	t.Run("no cutoff time provided", func(t *testing.T) {
+		data, err := ioutil.ReadFile("./test.html")
+		assert.NoError(t, err)
 
-	doc, err := html.Parse(r)
-	assert.NoError(t, err)
-	// find the entrypoint to  the results section of the page
-	resultSection, _ := findBy(doc, "id", "sortable-results")
-	// find the resultList, everything in here will go into the listing slice
-	resultList, _ := findBy(resultSection, "class", "rows")
-	listings := extractListings(resultList)
+		r := bytes.NewReader(data)
 
-	assert.Equal(t, 120, len(listings))
+		doc, err := html.Parse(r)
+		assert.NoError(t, err)
+		// find the entrypoint to  the results section of the page
+		resultSection, _ := findBy(doc, "id", "sortable-results")
+		// find the resultList, everything in here will go into the listing slice
+		resultList, _ := findBy(resultSection, "class", "rows")
+		listings := extractListings(resultList, nilTime)
+
+		assert.Equal(t, 120, len(listings))
+	})
+
+	t.Run("cutoff date provided", func(t *testing.T) {
+		data, err := ioutil.ReadFile("./test.html")
+		assert.NoError(t, err)
+
+		r := bytes.NewReader(data)
+
+		doc, err := html.Parse(r)
+		assert.NoError(t, err)
+		// find the entrypoint to  the results section of the page
+		resultSection, _ := findBy(doc, "id", "sortable-results")
+		// find the resultList, everything in here will go into the listing slice
+		resultList, _ := findBy(resultSection, "class", "rows")
+
+		layout := "2006-01-02 15:04"
+		cutoff, err := time.Parse(layout, "2020-06-08 14:03")
+		assert.NoError(t, err)
+
+		listings := extractListings(resultList, cutoff)
+
+		assert.Equal(t, 19, len(listings))
+	})
+
 }
