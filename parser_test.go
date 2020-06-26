@@ -1,4 +1,4 @@
-package gocraigslist
+package main
 
 import (
 	"bytes"

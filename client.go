@@ -1,4 +1,4 @@
-package gocraigslist
+package main
 
 import (
 	"context"
@@ -32,6 +32,7 @@ const (
 	maxPrice          = "&max_price="
 	language          = "&language="
 	condition         = "&condition="
+	page              = "&s="
 )
 
 // API represents the interface with Craigslist.
@@ -147,23 +148,23 @@ func (c *Client) FormatURL(term string, options Options) string {
 }
 
 // GetListings simply takes a URL and returns the first page of listings.
-func (c *Client) GetListings(ctx context.Context, url string) ([]Listing, error) {
+func (c *Client) GetListings(ctx context.Context, url string) ([]Listing, int, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("error send request: %v", err)
+		return nil, 0, fmt.Errorf("error send request: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		resp.Body.Close()
-		return nil, fmt.Errorf("error fetching from url: %s", resp.Status)
+		return nil, 0, fmt.Errorf("error fetching from url: %s", resp.Status)
 	}
 
-	listings, err := parseSearchResults(resp.Body)
+	listings, count, err := parseSearchResults(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing search results: %v", err)
+		return nil, 0, fmt.Errorf("error parsing search results: %v", err)
 	}
 
-	return listings, nil
+	return listings, count, nil
 }
 
 // GetNewListings performs the same tasks as GetListings but only
@@ -185,6 +186,19 @@ func (c *Client) GetNewListings(ctx context.Context, url string, date time.Time)
 	}
 
 	return listings, nil
+}
+
+// GetMultipageListings returns an iterator to retrieve multiple pages of listings
+func (c *Client) GetMultipageListings(ctx context.Context, url string) (Result, error) {
+	// get the first page
+	listings, count, err := c.GetListings(ctx, url)
+	if err != nil {
+		return nil, fmt.Errorf("error send request: %v", err)
+	}
+
+	r := newResult(c, url, count, listings)
+
+	return r, nil
 }
 
 func formatTerm(term string) string {
