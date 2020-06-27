@@ -38,8 +38,8 @@ const (
 // API represents the interface with Craigslist.
 type API interface {
 	FormatURL(term string, options Options) string
-	GetListings(ctx context.Context, url string) ([]Listing, error)
-	GetNewListings(ctx context.Context, url string, date time.Time) ([]Listing, error)
+	GetListings(ctx context.Context, url string) (*Result, error)
+	GetNewListings(ctx context.Context, url string, date time.Time) (*Result, error)
 }
 
 // Client is return from New Client with a Location. This Location is used as
@@ -147,29 +147,8 @@ func (c *Client) FormatURL(term string, options Options) string {
 	return url
 }
 
-// GetListings simply takes a URL and returns the first page of listings.
-func (c *Client) GetListings(ctx context.Context, url string) ([]Listing, int, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, 0, fmt.Errorf("error send request: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, 0, fmt.Errorf("error fetching from url: %s", resp.Status)
-	}
-
-	listings, count, err := parseSearchResults(resp.Body)
-	if err != nil {
-		return nil, 0, fmt.Errorf("error parsing search results: %v", err)
-	}
-
-	return listings, count, nil
-}
-
-// GetNewListings performs the same tasks as GetListings but only
-// returns listings greater than the passed in date
-func (c *Client) GetNewListings(ctx context.Context, url string, date time.Time) ([]Listing, error) {
+// GetListings simply takes a URL and returns an iterator containing the first page of listings.
+func (c *Client) GetListings(ctx context.Context, url string) (*Result, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error send request: %v", err)
@@ -180,20 +159,32 @@ func (c *Client) GetNewListings(ctx context.Context, url string, date time.Time)
 		return nil, fmt.Errorf("error fetching from url: %s", resp.Status)
 	}
 
-	listings, err := parseSearchResultsAfter(resp.Body, date)
+	listings, count, err := parseSearchResults(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing search results: %v", err)
 	}
 
-	return listings, nil
+	r := newResult(c, url, count, listings)
+
+	return r, nil
 }
 
-// GetMultipageListings returns an iterator to retrieve multiple pages of listings
-func (c *Client) GetMultipageListings(ctx context.Context, url string) (Result, error) {
-	// get the first page
-	listings, count, err := c.GetListings(ctx, url)
+// GetNewListings performs the same tasks as GetListings but only
+// returns listings greater than the passed in date.
+func (c *Client) GetNewListings(ctx context.Context, url string, date time.Time) (*Result, error) {
+	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error send request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("error fetching from url: %s", resp.Status)
+	}
+
+	listings, count, err := parseSearchResultsAfter(resp.Body, date)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing search results: %v", err)
 	}
 
 	r := newResult(c, url, count, listings)

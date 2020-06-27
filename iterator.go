@@ -2,17 +2,19 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"strconv"
 )
 
-// Result is an iterator used to retrieve multiple pages of listings
-type Result interface {
-	Next(context.Context) Result
+// Iterator is an iterator used to retrieve multiple pages of listings
+type Iterator interface {
+	Next(context.Context) (*Result, error)
 }
 
-// Iterator is the structural representation of Result
-type Iterator struct {
-	Client      *API
+// Result is the structural representation of Result
+type Result struct {
+	Client      API
 	Done        bool
 	Listings    []Listing
 	TotalCount  int
@@ -21,42 +23,59 @@ type Iterator struct {
 	Err         error
 }
 
-func newResult(c *API, url string, totalCount int, listings []Listing) Result {
-	i := Iterator{
+func newResult(c API, url string, totalCount int, listings []Listing) *Result {
+	r := Result{
 		Client:      c,
 		Done:        false,
 		Listings:    listings,
 		TotalCount:  totalCount,
 		CurrentPage: 0,
 		SearchURL:   url,
-		Err:         nil,
 	}
 
-	if len(listings) <= totalCount {
-		i.Done = true
+	if len(listings) >= totalCount {
+		r.Done = true
 	}
 
-	return &i
+	return &r
 }
 
 // Next page of listings. This will call the librarys fn GetListings.
-func (i *Iterator) Next(ctx context.Context) Result {
-	i.CurrentPage++
-	nextPageStart := i.CurrentPage * 120
-	nextPageURL := i.SearchURL + page + strconv.Itoa(nextPageStart)
+// Note: Because postings could be happening as this is fetching results, there is
+// the possibility of some duplicates coming through.
+// 		Example in seconds:
+//			time 0: 1st page is fetched
+//			time 1: 1st page of listings is being processed, new listing is posted
+// 			time 2: 2nd page is fetched
+//		the second page would contain the last listing of the previous page.
+func (r *Result) Next(ctx context.Context) (*Result, error) {
+	r.CurrentPage++
+	nextPageStart := r.CurrentPage * 120
+	nextPageURL := r.SearchURL + page + strconv.Itoa(nextPageStart)
 
-	listings, _, err := i.Client.GetListings(ctx, nextPageURL)
+	resp, err := http.Get(nextPageURL)
 	if err != nil {
-		i.Done = true
-		i.Err = err
-		return i
+		r.Done = true
+		return r, err
 	}
 
-	i.Listings = listings
-
-	if (nextPageStart + 120) >= i.TotalCount {
-		i.Done = true
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		r.Done = true
+		r.Listings = []Listing{}
+		return r, fmt.Errorf("error fetching from url: %v", resp.Status)
 	}
 
-	return i
+	listings, _, err := parseSearchResults(resp.Body)
+	if err != nil {
+		r.Done = true
+		return r, err
+	}
+
+	r.Listings = listings
+	if (nextPageStart + len(r.Listings)) >= r.TotalCount {
+		r.Done = true
+	}
+
+	return r, nil
 }
