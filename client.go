@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -149,17 +148,12 @@ func (c *Client) FormatURL(term string, options Options) string {
 
 // GetListings simply takes a URL and returns an iterator containing the first page of listings.
 func (c *Client) GetListings(ctx context.Context, url string) (*Result, error) {
-	resp, err := http.Get(url)
+	respBody, err := fetch(ctx, url)
 	if err != nil {
-		return nil, fmt.Errorf("error send request: %v", err)
+		return nil, fmt.Errorf("error sending http request: %v", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("error fetching from url: %s", resp.Status)
-	}
-
-	listings, count, err := parseSearchResults(resp.Body)
+	listings, count, err := parseSearchResults(respBody)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing search results: %v", err)
 	}
@@ -172,17 +166,12 @@ func (c *Client) GetListings(ctx context.Context, url string) (*Result, error) {
 // GetNewListings performs the same tasks as GetListings but only
 // returns listings greater than the passed in date.
 func (c *Client) GetNewListings(ctx context.Context, url string, date time.Time) (*Result, error) {
-	resp, err := http.Get(url)
+	respBody, err := fetch(ctx, url)
 	if err != nil {
-		return nil, fmt.Errorf("error send request: %v", err)
+		return nil, fmt.Errorf("error sending http request: %v", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("error fetching from url: %s", resp.Status)
-	}
-
-	listings, count, err := parseSearchResultsAfter(resp.Body, date)
+	listings, count, err := parseSearchResultsAfter(respBody, date)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing search results: %v", err)
 	}

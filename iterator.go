@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strconv"
 )
 
@@ -53,20 +52,15 @@ func (r *Result) Next(ctx context.Context) (*Result, error) {
 	nextPageStart := r.CurrentPage * 120
 	nextPageURL := r.SearchURL + page + strconv.Itoa(nextPageStart)
 
-	resp, err := http.Get(nextPageURL)
+	respBody, err := fetch(ctx, nextPageURL)
 	if err != nil {
-		r.Done = true
-		return r, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
+		respBody.Close()
 		r.Done = true
 		r.Listings = []Listing{}
-		return r, fmt.Errorf("error fetching from url: %v", resp.Status)
+		return r, fmt.Errorf("error fetching from url: %v", err)
 	}
 
-	listings, _, err := parseSearchResults(resp.Body)
+	listings, _, err := parseSearchResults(respBody)
 	if err != nil {
 		r.Done = true
 		return r, err
