@@ -45,6 +45,7 @@ type API interface {
 // the default value in FormatURL unless one is provided in Options.
 type Client struct {
 	Location string
+	Request  fetcher
 }
 
 // Options represents available parameters to construct a URL. Filters
@@ -67,7 +68,7 @@ type Options struct {
 
 // NewClient will instantiate a client, set the location, and return a pointer.
 func NewClient(location string) API {
-	c := Client{Location: location}
+	c := Client{Location: location, Request: newHTTPService()}
 	return &c
 }
 
@@ -148,7 +149,7 @@ func (c *Client) FormatURL(term string, options Options) string {
 
 // GetListings simply takes a URL and returns an iterator containing the first page of listings.
 func (c *Client) GetListings(ctx context.Context, url string) (*Result, error) {
-	respBody, err := fetch(ctx, url)
+	respBody, err := c.Request.fetch(ctx, url)
 	if err != nil {
 		return nil, fmt.Errorf("error sending http request: %v", err)
 	}
@@ -166,7 +167,7 @@ func (c *Client) GetListings(ctx context.Context, url string) (*Result, error) {
 // GetNewListings performs the same tasks as GetListings but only
 // returns listings greater than the passed in date.
 func (c *Client) GetNewListings(ctx context.Context, url string, date time.Time) (*Result, error) {
-	respBody, err := fetch(ctx, url)
+	respBody, err := c.Request.fetch(ctx, url)
 	if err != nil {
 		return nil, fmt.Errorf("error sending http request: %v", err)
 	}
