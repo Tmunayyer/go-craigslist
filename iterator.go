@@ -13,7 +13,7 @@ type Iterator interface {
 
 // Result is the structural representation of Result
 type Result struct {
-	Client      API
+	Client      *Client
 	Done        bool
 	Listings    []Listing
 	TotalCount  int
@@ -22,7 +22,7 @@ type Result struct {
 	Err         error
 }
 
-func newResult(c API, url string, totalCount int, listings []Listing) *Result {
+func newResult(c *Client, url string, totalCount int, listings []Listing) *Result {
 	r := Result{
 		Client:      c,
 		Done:        false,
@@ -52,15 +52,15 @@ func (r *Result) Next(ctx context.Context) (*Result, error) {
 	nextPageStart := r.CurrentPage * 120
 	nextPageURL := r.SearchURL + page + strconv.Itoa(nextPageStart)
 
-	respBody, err := r.Client.Request.fetch(ctx, nextPageURL)
+	resp, err := r.Client.Request.fetch(ctx, nextPageURL)
 	if err != nil {
-		respBody.Close()
+		resp.Body.Close()
 		r.Done = true
 		r.Listings = []Listing{}
 		return r, fmt.Errorf("error fetching from url: %v", err)
 	}
 
-	listings, _, err := parseSearchResults(respBody)
+	listings, _, err := parseSearchResults(resp.Body)
 	if err != nil {
 		r.Done = true
 		return r, err

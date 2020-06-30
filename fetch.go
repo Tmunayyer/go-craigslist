@@ -3,12 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 )
 
 type fetcher interface {
-	fetch(ctx context.Context, url string) (io.ReadCloser, error)
+	fetch(ctx context.Context, url string) (*http.Response, error)
 }
 
 type httpService struct{}
@@ -18,7 +17,7 @@ func newHTTPService() fetcher {
 }
 
 // simple function to isolate http requests from other services
-func (f *httpService) fetch(ctx context.Context, url string) (io.ReadCloser, error) {
+func (f *httpService) fetch(ctx context.Context, url string) (*http.Response, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error send request: %v", err)
@@ -29,5 +28,5 @@ func (f *httpService) fetch(ctx context.Context, url string) (io.ReadCloser, err
 		return nil, fmt.Errorf("error fetching from url: %s", resp.Status)
 	}
 
-	return resp.Body, nil
+	return resp, nil
 }

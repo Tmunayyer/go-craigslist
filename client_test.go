@@ -1,12 +1,43 @@
 package main
 
 import (
+	"context"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+type mockFetcher struct {
+	callCount int
+	data      []byte
+}
+
+func (m *mockFetcher) fetch(ctx context.Context, url string) (*http.Response, error) {
+	res := httptest.NewRecorder()
+
+	// some logic so the test doesnt need to keep reading the file
+	var data []byte
+	var err error
+	if len(m.data) == 0 {
+		data, err = ioutil.ReadFile("./test.html")
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		data = make([]byte, len(m.data))
+		copy(data, m.data)
+	}
+
+	m.callCount++
+	res.Write(data)
+
+	return res.Result(), nil
+}
 
 func TestFormatURL(t *testing.T) {
 	client := NewClient("newyork")
@@ -182,6 +213,36 @@ func TestFormatURL(t *testing.T) {
 		url := client.FormatURL("xbox", o)
 
 		analyzeURL(t, url, o, 231) // 231 = 21!
+	})
+}
+
+func TestResultIterator(t *testing.T) {
+	client := Client{Location: "newyork", Request: &mockFetcher{}}
+
+	t.Run("test iterator functionality surrounding pagination", func(t *testing.T) {
+		result, err := client.GetListings(context.Background(), "fakeurl.com")
+		assert.NoError(t, err)
+
+		// first time around should produce theser results
+		assert.Equal(t, result.TotalCount, 3000)
+		assert.Equal(t, result.CurrentPage, 0)
+		assert.False(t, result.Done)
+
+		// the next call should set the current page 1 higher
+		result, err = result.Next(context.Background())
+		assert.NoError(t, err)
+
+		assert.Equal(t, result.CurrentPage, 1)
+		assert.False(t, result.Done)
+
+		for !result.Done {
+			result, err = result.Next(context.Background())
+			assert.NoError(t, err)
+		}
+
+		// 3000 / 120 = 25, should end on page 24
+		assert.Equal(t, result.CurrentPage, 24)
+		assert.True(t, result.Done)
 	})
 }
 
