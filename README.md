@@ -22,11 +22,11 @@ import (
 func main() {
 	client := gocraigslist.NewClient("newyork")
 
-	listings, err := client.GetListings(context.TODO(), "https://newyork.craigslist.org/d/antiques/search/ata")
+	result, err := client.GetListings(context.TODO(), "https://newyork.craigslist.org/d/antiques/search/ata")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("the antique listings:", listings)
+	fmt.Println("the antique listings:", result.Listings)
 }
 ```
 
