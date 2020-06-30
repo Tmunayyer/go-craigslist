@@ -76,7 +76,6 @@ func TestFindAttr(t *testing.T) {
 }
 
 func TestExtractListings(t *testing.T) {
-
 	t.Run("no cutoff time provided", func(t *testing.T) {
 		data, err := ioutil.ReadFile("./test.html")
 		assert.NoError(t, err)
@@ -115,5 +114,4 @@ func TestExtractListings(t *testing.T) {
 
 		assert.Equal(t, 19, len(listings))
 	})
-
 }

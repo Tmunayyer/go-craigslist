@@ -3,6 +3,7 @@ package gocraigslist
 import (
 	"fmt"
 	"io"
+	"strconv"
 	"time"
 
 	"golang.org/x/net/html"
@@ -21,10 +22,10 @@ type Listing struct {
 
 var nilTime = time.Time{}
 
-func parseSearchResults(data io.Reader) ([]Listing, error) {
+func parseSearchResults(data io.Reader) ([]Listing, int, error) {
 	doc, err := html.Parse(data)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse data: %v", err)
+		return nil, 0, fmt.Errorf("unable to parse data: %v", err)
 	}
 
 	// find the entrypoint to  the results section of the page
@@ -34,13 +35,19 @@ func parseSearchResults(data io.Reader) ([]Listing, error) {
 
 	listings := extractListings(resultList, nilTime)
 
-	return listings, nil
+	totalCountSection, _ := findBy(doc, "class", "totalcount")
+	totalCount, err := strconv.Atoi(findText(totalCountSection))
+	if err != nil {
+		return listings, 0, fmt.Errorf("unable to parse count: %v", err)
+	}
+
+	return listings, totalCount, nil
 }
 
-func parseSearchResultsAfter(data io.Reader, date time.Time) ([]Listing, error) {
+func parseSearchResultsAfter(data io.Reader, date time.Time) ([]Listing, int, error) {
 	doc, err := html.Parse(data)
 	if err != nil {
-		return nil, fmt.Errorf("unable to parse data: %v", err)
+		return nil, 0, fmt.Errorf("unable to parse data: %v", err)
 	}
 
 	// find the entrypoint to  the results section of the page
@@ -50,7 +57,13 @@ func parseSearchResultsAfter(data io.Reader, date time.Time) ([]Listing, error) 
 
 	listings := extractListings(resultList, date)
 
-	return listings, nil
+	totalCountSection, _ := findBy(doc, "class", "totalcount")
+	totalCount, err := strconv.Atoi(findText(totalCountSection))
+	if err != nil {
+		return listings, 0, fmt.Errorf("unable to parse count: %v", err)
+	}
+
+	return listings, totalCount, nil
 }
 
 // findBy takes a parent node and iterates recursevly through the nodes

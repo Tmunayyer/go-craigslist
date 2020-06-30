@@ -3,7 +3,6 @@ package gocraigslist
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -32,19 +31,21 @@ const (
 	maxPrice          = "&max_price="
 	language          = "&language="
 	condition         = "&condition="
+	page              = "&s="
 )
 
 // API represents the interface with Craigslist.
 type API interface {
 	FormatURL(term string, options Options) string
-	GetListings(ctx context.Context, url string) ([]Listing, error)
-	GetNewListings(ctx context.Context, url string, date time.Time) ([]Listing, error)
+	GetListings(ctx context.Context, url string) (*Result, error)
+	GetNewListings(ctx context.Context, url string, date time.Time) (*Result, error)
 }
 
 // Client is return from New Client with a Location. This Location is used as
 // the default value in FormatURL unless one is provided in Options.
 type Client struct {
 	Location string
+	Request  fetcher
 }
 
 // Options represents available parameters to construct a URL. Filters
@@ -67,7 +68,7 @@ type Options struct {
 
 // NewClient will instantiate a client, set the location, and return a pointer.
 func NewClient(location string) API {
-	c := Client{Location: location}
+	c := Client{Location: location, Request: newHTTPService()}
 	return &c
 }
 
@@ -146,45 +147,39 @@ func (c *Client) FormatURL(term string, options Options) string {
 	return url
 }
 
-// GetListings simply takes a URL and returns the first page of listings.
-func (c *Client) GetListings(ctx context.Context, url string) ([]Listing, error) {
-	resp, err := http.Get(url)
+// GetListings simply takes a URL and returns an iterator containing the first page of listings.
+func (c *Client) GetListings(ctx context.Context, url string) (*Result, error) {
+	resp, err := c.Request.fetch(ctx, url)
 	if err != nil {
-		return nil, fmt.Errorf("error send request: %v", err)
+		return nil, fmt.Errorf("error sending http request: %v", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("error fetching from url: %s", resp.Status)
-	}
-
-	listings, err := parseSearchResults(resp.Body)
+	listings, count, err := parseSearchResults(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing search results: %v", err)
 	}
 
-	return listings, nil
+	r := newResult(c, url, count, listings)
+
+	return r, nil
 }
 
 // GetNewListings performs the same tasks as GetListings but only
-// returns listings greater than the passed in date
-func (c *Client) GetNewListings(ctx context.Context, url string, date time.Time) ([]Listing, error) {
-	resp, err := http.Get(url)
+// returns listings greater than the passed in date.
+func (c *Client) GetNewListings(ctx context.Context, url string, date time.Time) (*Result, error) {
+	resp, err := c.Request.fetch(ctx, url)
 	if err != nil {
-		return nil, fmt.Errorf("error send request: %v", err)
+		return nil, fmt.Errorf("error sending http request: %v", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		resp.Body.Close()
-		return nil, fmt.Errorf("error fetching from url: %s", resp.Status)
-	}
-
-	listings, err := parseSearchResultsAfter(resp.Body, date)
+	listings, count, err := parseSearchResultsAfter(resp.Body, date)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing search results: %v", err)
 	}
 
-	return listings, nil
+	r := newResult(c, url, count, listings)
+
+	return r, nil
 }
 
 func formatTerm(term string) string {
