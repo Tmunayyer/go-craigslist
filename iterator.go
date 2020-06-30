@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 // Iterator is an iterator used to retrieve multiple pages of listings
@@ -47,7 +48,7 @@ func newResult(c *Client, url string, totalCount int, listings []Listing) *Resul
 //			time 1: 1st page of listings is being processed, new listing is posted
 // 			time 2: 2nd page is fetched
 //		the second page would contain the last listing of the previous page.
-func (r *Result) Next(ctx context.Context) (*Result, error) {
+func (r *Result) Next(ctx context.Context, date time.Time) (*Result, error) {
 	r.CurrentPage++
 	nextPageStart := r.CurrentPage * 120
 	nextPageURL := r.SearchURL + page + strconv.Itoa(nextPageStart)
@@ -60,13 +61,27 @@ func (r *Result) Next(ctx context.Context) (*Result, error) {
 		return r, fmt.Errorf("error fetching from url: %v", err)
 	}
 
-	listings, _, err := parseSearchResults(resp.Body)
+	var listings []Listing
+	if date == nilTime {
+		listings, _, err = parseSearchResults(resp.Body)
+	} else {
+		listings, _, err = parseSearchResultsAfter(resp.Body, date)
+	}
+
 	if err != nil {
 		r.Done = true
 		return r, err
 	}
 
 	r.Listings = listings
+
+	// This is required in the event a date is passed in. A search with a date
+	// might have a high total count but none that after posted after said date.
+	// in this event, it should stop as soon as there are no listings found.
+	if len(listings) == 0 {
+		r.Done = true
+	}
+
 	if (nextPageStart + len(r.Listings)) >= r.TotalCount {
 		r.Done = true
 	}

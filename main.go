@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 func main() {
@@ -21,7 +22,7 @@ func main() {
 		fmt.Println("the first result:", result.Listings[0].Title)
 		fmt.Println("the last result:", result.Listings[len(result.Listings)-1].Title)
 
-		result, err = result.Next(context.TODO())
+		result, err = result.Next(context.TODO(), time.Time{})
 		if err != nil {
 			panic(err)
 		}
