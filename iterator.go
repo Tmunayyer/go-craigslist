@@ -9,7 +9,7 @@ import (
 
 // Iterator is an iterator used to retrieve multiple pages of listings
 type Iterator interface {
-	Next(context.Context) (*Result, error)
+	Next(context.Context, time.Time) (*Result, error)
 }
 
 // Result is the structural representation of Result
