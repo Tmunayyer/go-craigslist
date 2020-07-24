@@ -17,13 +17,14 @@ type Result struct {
 	Client      *Client
 	Done        bool
 	Listings    []Listing
+	Timezone    string
 	TotalCount  int
 	CurrentPage int
 	SearchURL   string // the original search url without pagination
 	Err         error
 }
 
-func newResult(c *Client, url string, totalCount int, listings []Listing) *Result {
+func newResult(c *Client, url string, totalCount int, listings []Listing, timezone string) *Result {
 	r := Result{
 		Client:      c,
 		Done:        false,
@@ -31,6 +32,7 @@ func newResult(c *Client, url string, totalCount int, listings []Listing) *Resul
 		TotalCount:  totalCount,
 		CurrentPage: 0,
 		SearchURL:   url,
+		Timezone:    timezone,
 	}
 
 	if len(listings) >= totalCount {

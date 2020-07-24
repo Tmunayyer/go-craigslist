@@ -2,6 +2,7 @@ package gocraigslist
 
 import (
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -14,12 +15,37 @@ import (
 )
 
 type mockFetcher struct {
-	callCount int
-	data      []byte
+	callCount    int
+	data         []byte
+	timezoneData Area
 }
 
 func (m *mockFetcher) fetch(ctx context.Context, url string) (*http.Response, error) {
 	res := httptest.NewRecorder()
+	if url == tzURL {
+		// do timezone logic
+		m.callCount++
+		fakeArea := []Area{
+			{
+				Abbreviation:     "sfo",
+				AreaID:           1,
+				Country:          "US",
+				Description:      "SF bay area",
+				Hostname:         "sfbay",
+				Latitude:         37.5,
+				Longitude:        -122.25,
+				Region:           "CA",
+				ShortDescription: "SF bay area",
+				Timezone:         "America/Los_Angeles",
+			},
+		}
+		data, err := json.Marshal(fakeArea)
+		if err != nil {
+			return nil, err
+		}
+		res.Write(data)
+		return res.Result(), nil
+	}
 
 	// some logic so the test doesnt need to keep reading the file
 	var data []byte
@@ -38,6 +64,7 @@ func (m *mockFetcher) fetch(ctx context.Context, url string) (*http.Response, er
 	res.Write(data)
 
 	return res.Result(), nil
+
 }
 
 func TestFormatURL(t *testing.T) {
@@ -272,6 +299,30 @@ func TestResultIterator(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.True(t, result.Done)
+	})
+}
+
+func TestTimezones(t *testing.T) {
+	t.Run("should populate client Timezone", func(t *testing.T) {
+		client := Client{Location: "newyork", Request: &mockFetcher{}}
+
+		_, err := client.GetTimezones(context.Background())
+		assert.NoError(t, err)
+
+		zone, has := client.TimezoneMap["sfbay"]
+		assert.True(t, has)
+		assert.Equal(t, zone, "America/Los_Angeles")
+	})
+
+	t.Run("should populate client automatically", func(t *testing.T) {
+		client := Client{Location: "newyork", Request: &mockFetcher{}}
+
+		_, err := client.GetListings(context.Background(), "https://sfbay.craigslist.org/search/lgb/ata?")
+		assert.NoError(t, err)
+
+		zone, has := client.TimezoneMap["sfbay"]
+		assert.True(t, has)
+		assert.Equal(t, zone, "America/Los_Angeles")
 	})
 }
 

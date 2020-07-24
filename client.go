@@ -2,7 +2,9 @@ package gocraigslist
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/url"
 	"strings"
 	"time"
@@ -32,6 +34,9 @@ const (
 	language          = "&language="
 	condition         = "&condition="
 	page              = "&s="
+
+	// timezone url
+	tzURL = "http://reference.craigslist.org/Areas"
 )
 
 // API represents the interface with Craigslist.
@@ -39,13 +44,15 @@ type API interface {
 	FormatURL(term string, options Options) string
 	GetListings(ctx context.Context, url string) (*Result, error)
 	GetNewListings(ctx context.Context, url string, date time.Time) (*Result, error)
+	GetTimezones(ctx context.Context) (map[string]string, error)
 }
 
 // Client is return from New Client with a Location. This Location is used as
 // the default value in FormatURL unless one is provided in Options.
 type Client struct {
-	Location string
-	Request  fetcher
+	Location    string
+	Request     fetcher
+	TimezoneMap map[string]string
 }
 
 // Options represents available parameters to construct a URL. Filters
@@ -64,6 +71,29 @@ type Options struct {
 	MaxPrice          string   // OPTIONAL: example = 500
 	Condition         []string // OPTIONAL: [new, 10], [like new, 20], [excellent, 30], [good, 40], [fair, 50], [salvage, 60]
 	Language          []string // OPTIONAL: [af, 1], [ca, 2], [da, 3], [de, 4], [en, 5], [es, 6], [fi, 7], [fr, 8], [it, 9], [nl, 10], [no, 11], [pt, 12], [sv, 13], [tl, 14], [tr, 15], [zh, 16], [ar, 17], [ja, 18], [ko, 19], [ru, 20], [vi, 21]
+}
+
+// Area represents a region according to craigslist.com
+type Area struct {
+	Abbreviation     string
+	AreaID           int
+	Country          string
+	Description      string
+	Hostname         string
+	Latitude         float32
+	Longitude        float32
+	Region           string
+	ShortDescription string
+	Timezone         string
+	SubAreas         []SubArea
+}
+
+// SubArea represent an area within an Area
+type SubArea struct {
+	Abbreviation     string
+	Description      string
+	ShortDescription string
+	SubAreaID        int
 }
 
 // NewClient will instantiate a client, set the location, and return a pointer.
@@ -154,12 +184,23 @@ func (c *Client) GetListings(ctx context.Context, url string) (*Result, error) {
 		return nil, fmt.Errorf("error sending http request: %v", err)
 	}
 
+	if c.TimezoneMap == nil {
+		_, err = c.GetTimezones(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("error getting timezones: %v", err)
+		}
+	}
+	startHostname := 8
+	endHostname := strings.Index(url, ".")
+	hostname := url[startHostname:endHostname]
+	timezone := c.TimezoneMap[hostname]
+
 	listings, count, err := parseSearchResults(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing search results: %v", err)
 	}
 
-	r := newResult(c, url, count, listings)
+	r := newResult(c, url, count, listings, timezone)
 
 	return r, nil
 }
@@ -172,14 +213,54 @@ func (c *Client) GetNewListings(ctx context.Context, url string, date time.Time)
 		return nil, fmt.Errorf("error sending http request: %v", err)
 	}
 
+	if c.TimezoneMap == nil {
+		_, err = c.GetTimezones(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("error getting timezones: %v", err)
+		}
+	}
+	startHostname := 8
+	endHostname := strings.Index(url, ".")
+	hostname := url[startHostname:endHostname]
+	timezone := c.TimezoneMap[hostname]
+
 	listings, count, err := parseSearchResultsAfter(resp.Body, date)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing search results: %v", err)
 	}
 
-	r := newResult(c, url, count, listings)
+	r := newResult(c, url, count, listings, timezone)
 
 	return r, nil
+}
+
+// GetTimezones fetches and populates TimezoneMap
+func (c *Client) GetTimezones(ctx context.Context) (map[string]string, error) {
+	resp, err := c.Request.fetch(ctx, tzURL)
+	if err != nil {
+		return nil, fmt.Errorf("error sending http request: %v", err)
+	}
+
+	data, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("error reading the http body: %v", err)
+	}
+
+	areas := []Area{}
+	err = json.Unmarshal(data, &areas)
+
+	fmt.Println("the areas:", areas)
+
+	timezones := make(map[string]string)
+	for _, area := range areas {
+		timezones[area.Hostname] = area.Timezone
+	}
+
+	c.TimezoneMap = timezones
+
+	fmt.Println("inside the GetTimezones:", timezones)
+
+	return timezones, nil
 }
 
 func formatTerm(term string) string {
