@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -25,6 +26,11 @@ type Result struct {
 }
 
 func newResult(c *Client, url string, totalCount int, listings []Listing, timezone string) *Result {
+	index := strings.Index(url, "?")
+	if index < 0 {
+		url = url + "?"
+	}
+
 	r := Result{
 		Client:      c,
 		Done:        false,
