@@ -249,16 +249,12 @@ func (c *Client) GetTimezones(ctx context.Context) (map[string]string, error) {
 	areas := []Area{}
 	err = json.Unmarshal(data, &areas)
 
-	fmt.Println("the areas:", areas)
-
 	timezones := make(map[string]string)
 	for _, area := range areas {
 		timezones[area.Hostname] = area.Timezone
 	}
 
 	c.TimezoneMap = timezones
-
-	fmt.Println("inside the GetTimezones:", timezones)
 
 	return timezones, nil
 }
