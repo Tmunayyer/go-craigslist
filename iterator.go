@@ -39,6 +39,10 @@ func newResult(c *Client, url string, totalCount int, listings []Listing, timezo
 		r.Done = true
 	}
 
+	if len(listings) < 120 {
+		r.Done = true
+	}
+
 	return &r
 }
 

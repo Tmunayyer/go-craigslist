@@ -247,8 +247,25 @@ func TestFormatURL(t *testing.T) {
 func TestResultIterator(t *testing.T) {
 	client := Client{Location: "newyork", Request: &mockFetcher{}}
 
+	t.Run("should set done correctly", func(t *testing.T) {
+		loc, err := time.LoadLocation("America/Los_Angeles")
+		assert.NoError(t, err)
+
+		layout := "2006-01-02 15:04"
+		date, err := time.ParseInLocation(layout, "2020-06-08 14:45", loc)
+		date = date.Add(1 * time.Second)
+
+		result, err := client.GetNewListings(context.Background(), "https://sfbay.fakeurl.com", date)
+		assert.NoError(t, err)
+
+		// first time around should produce theser results
+		assert.Equal(t, len(result.Listings), 0)
+		assert.Equal(t, result.CurrentPage, 0)
+		assert.True(t, result.Done)
+	})
+
 	t.Run("test iterator functionality surrounding pagination", func(t *testing.T) {
-		result, err := client.GetListings(context.Background(), "fakeurl.com")
+		result, err := client.GetListings(context.Background(), "https://sfbay.fakeurl.com")
 		assert.NoError(t, err)
 
 		// first time around should produce theser results
@@ -274,7 +291,7 @@ func TestResultIterator(t *testing.T) {
 	})
 
 	t.Run("test iterator functionality surrounding passed in date", func(t *testing.T) {
-		result, err := client.GetListings(context.Background(), "fakeurl.com")
+		result, err := client.GetListings(context.Background(), "https://sfbay.fakeurl.com")
 		assert.NoError(t, err)
 
 		// first time around should produce theser results
