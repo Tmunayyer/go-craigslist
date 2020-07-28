@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"time"
 
 	"golang.org/x/net/html"
@@ -151,10 +152,18 @@ func extractListings(item *html.Node, cutoffDate time.Time) []Listing {
 		_, dataRepostOf := findAttr(current.Attr, "data-repost-of")
 
 		datetimeNode, _ := findBy(info, "class", "result-date")
-		_, datetime := findAttr(datetimeNode.Attr, "datetime")
+		_, shortdate := findAttr(datetimeNode.Attr, "datetime")
+		_, longdate := findAttr(datetimeNode.Attr, "title")
+
+		longtime := strings.Split(longdate, " ")[3]
+		longtimeseconds := strings.Split(longtime, ":")[2]
+
+		shortdatetime := strings.Split(shortdate, " ")
+
+		datetime := strings.Join([]string{shortdatetime[0], shortdatetime[1] + ":" + longtimeseconds}, " ")
 
 		if cutoffDate != nilTime {
-			layout := "2006-01-02 15:04"
+			layout := "2006-01-02 15:04:05"
 			tz := cutoffDate.Location()
 			t, err := time.ParseInLocation(layout, datetime, tz)
 			if err != nil {
