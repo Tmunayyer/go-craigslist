@@ -251,16 +251,18 @@ func TestResultIterator(t *testing.T) {
 		loc, err := time.LoadLocation("America/Los_Angeles")
 		assert.NoError(t, err)
 
-		layout := "2006-01-02 15:04"
-		date, err := time.ParseInLocation(layout, "2020-06-08 14:45", loc)
+		layout := "2006-01-02 15:04:05"
+		// time of the most recent listing
+		recentListingTime := "2020-06-08 14:45:12"
+		date, err := time.ParseInLocation(layout, recentListingTime, loc)
 		date = date.Add(1 * time.Second)
 
 		result, err := client.GetNewListings(context.Background(), "https://sfbay.fakeurl.com", date)
 		assert.NoError(t, err)
 
 		// first time around should produce theser results
-		assert.Equal(t, len(result.Listings), 0)
-		assert.Equal(t, result.CurrentPage, 0)
+		assert.Equal(t, 0, len(result.Listings))
+		assert.Equal(t, 0, result.CurrentPage)
 		assert.True(t, result.Done)
 	})
 
@@ -299,8 +301,8 @@ func TestResultIterator(t *testing.T) {
 		assert.Equal(t, result.CurrentPage, 0)
 		assert.False(t, result.Done)
 
-		layout := "2006-01-02 15:04"
-		cutoff, err := time.Parse(layout, "2020-06-08 14:03")
+		layout := "2006-01-02 15:04:05"
+		cutoff, err := time.Parse(layout, "2020-06-08 14:03:00")
 		assert.NoError(t, err)
 
 		// pass in date to Next that will have some listings returned
