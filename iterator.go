@@ -65,8 +65,6 @@ func (r *Result) Next(ctx context.Context, date time.Time) (*Result, error) {
 	nextPageStart := r.CurrentPage * 120
 	nextPageURL := r.SearchURL + page + strconv.Itoa(nextPageStart)
 
-	fmt.Println("going to the next page...:", nextPageURL)
-
 	resp, err := r.Client.Request.fetch(ctx, nextPageURL)
 	if err != nil {
 		resp.Body.Close()
