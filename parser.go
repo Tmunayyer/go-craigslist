@@ -161,6 +161,9 @@ func extractListings(item *html.Node, cutoffDate time.Time) []Listing {
 				panic(err)
 			}
 
+			fmt.Println("the time in location:", t.String())
+			fmt.Println("the cutoff", cutoffDate.String())
+
 			if t.Before(cutoffDate) {
 				break
 			}
