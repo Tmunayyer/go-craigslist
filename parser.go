@@ -155,7 +155,8 @@ func extractListings(item *html.Node, cutoffDate time.Time) []Listing {
 
 		if cutoffDate != nilTime {
 			layout := "2006-01-02 15:04"
-			t, err := time.Parse(layout, datetime)
+			tz := cutoffDate.Location()
+			t, err := time.ParseInLocation(layout, datetime, tz)
 			if err != nil {
 				panic(err)
 			}
