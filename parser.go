@@ -147,6 +147,11 @@ func extractListings(item *html.Node, cutoffDate time.Time) []Listing {
 		// all data housed under this node
 		info, _ := findBy(current, "class", "result-info")
 
+		if info == nil {
+			current = current.NextSibling
+			continue
+		}
+
 		// pull some data off the parent node that is current
 		_, dataPID := findAttr(current.Attr, "data-pid")
 		_, dataRepostOf := findAttr(current.Attr, "data-repost-of")
